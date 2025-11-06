@@ -1,6 +1,4 @@
 import express from "express";
-import fetch from "node-fetch";
-
 const router = express.Router();
 
 router.post("/chat", async (req, res) => {
@@ -18,19 +16,16 @@ router.post("/chat", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b", // or "llama-3-70b" / "mixtral-8x7b"
+        model: "llama-3.3-70b",
         messages: [
-          { role: "system", content: "You are SamvaadGPT — a friendly AI assistant built by Satyam." },
+          { role: "system", content: "You are SamvaadGPT — a helpful assistant." },
           { role: "user", content: userMessage }
-        ],
-        temperature: 0.8,
-        max_tokens: 600
+        ]
       })
     });
 
     const data = await response.json();
     const reply = data?.choices?.[0]?.message?.content || "No response received.";
-
     res.json({ reply });
   } catch (err) {
     console.error("Groq API Error:", err);
