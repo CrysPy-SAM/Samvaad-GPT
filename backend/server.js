@@ -1,13 +1,34 @@
-import OpenAI from 'openai';
+import express from "express";
+import "dotenv/config";
+import cors from "cors";
+import mongoose from "mongoose";
+import chatRoutes from "./routes/chat.js";
 
-const client = new OpenAI({
-  apiKey: process.env['OPENAI_API_KEY'], // This is the default and can be omitted
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+// 🔧 Middleware
+app.use(express.json());
+app.use(cors());
+
+// 🔌 Routes
+app.use("/api", chatRoutes);
+
+// ⚙️ Start the server & connect to DB
+app.listen(PORT, () => {
+  console.log(`🚀 Samvaad-GPT server running on port ${PORT}`);
+  connectDB();
 });
 
-const response = await client.responses.create({
-  model: 'gpt-4o',
-  instructions: 'You are a coding assistant that talks like a pirate',
-  input: 'Are semicolons optional in JavaScript?',
-});
-
-console.log(response.output_text);
+// 🧠 MongoDB Connection
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+    console.log("✅ Connected to MongoDB successfully!");
+  } catch (err) {
+    console.error("❌ Failed to connect with MongoDB:", err.message);
+  }
+};
