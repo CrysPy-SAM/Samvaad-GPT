@@ -76,6 +76,13 @@ const ThreadSchema = new mongoose.Schema({
         default: false,
         index: true
     },
+    userId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  required: true,
+  index: true,
+},
+
     createdAt: {
         type: Date,
         default: Date.now,
@@ -187,5 +194,6 @@ ThreadSchema.set("toJSON", {
         return ret;
     }
 });
+
 
 export default mongoose.model("Thread", ThreadSchema)

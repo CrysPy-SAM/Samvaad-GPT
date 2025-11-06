@@ -8,8 +8,12 @@ import rateLimit from "express-rate-limit";
 // Routes
 import chatRoutes from "./routes/chat.js";
 import fileRoutes from "./routes/fileAnalyze.js";
+import authRoutes from "./routes/auth.js";
+
+
 
 const app = express();
+app.use("/api/auth", authRoutes);
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
