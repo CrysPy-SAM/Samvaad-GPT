@@ -1,6 +1,14 @@
-# Environment files (keep secrets safe)
+# Environment files
 .env
 .env.local
-# Node modules & logs
+
+# Node modules
 node_modules/
+
+# Logs
 *.log
+npm-debug.log*
+
+# Build folders
+dist/
+build/
