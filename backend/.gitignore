@@ -1,0 +1,6 @@
+# Environment files (keep secrets safe)
+.env
+.env.local
+# Node modules & logs
+node_modules/
+*.log
