@@ -2,6 +2,7 @@ import express from "express";
 import Thread from "../models/Thread.js";
 import "dotenv/config";
 import { v4 as uuidv4 } from "uuid";
+import { authMiddleware } from "./auth.js"; // ✅ added for route protection
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ const getGroqAPIResponse = async (messages, systemPrompt = null) => {
 
     const apiMessages = [
       { role: "system", content: systemMessage },
-      ...messages.slice(-10) // Keep last 10 messages for context
+      ...messages.slice(-10)
     ];
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -72,24 +73,27 @@ const validateChatInput = (req, res, next) => {
   next();
 };
 
-// ✅ Get all threads (sorted by most recent, with pagination)
+// ✅ Protect all routes below with authMiddleware
+router.use(authMiddleware);
+
+// ✅ Get all threads (user-specific, paginated)
 router.get("/threads", async (req, res) => {
   try {
+    const userId = req.user.id;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
     const [threads, total] = await Promise.all([
-      Thread.find({})
+      Thread.find({ userId })
         .select("threadId title updatedAt createdAt messages")
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Thread.countDocuments({})
+      Thread.countDocuments({ userId })
     ]);
 
-    // Add message count and last message preview
     const enrichedThreads = threads.map(thread => ({
       ...thread,
       messageCount: thread.messages?.length || 0,
@@ -111,12 +115,12 @@ router.get("/threads", async (req, res) => {
   }
 });
 
-// ✅ Get specific thread by ID
+// ✅ Get specific thread by ID (user-owned only)
 router.get("/thread/:threadId", async (req, res) => {
   const { threadId } = req.params;
 
   try {
-    const thread = await Thread.findOne({ threadId }).lean();
+    const thread = await Thread.findOne({ threadId, userId: req.user.id }).lean();
 
     if (!thread) {
       return res.status(404).json({ error: "Thread not found" });
@@ -135,7 +139,7 @@ router.get("/thread/:threadId", async (req, res) => {
   }
 });
 
-// ✅ Create a new thread
+// ✅ Create a new thread (linked to user)
 router.post("/thread", async (req, res) => {
   try {
     const { title } = req.body;
@@ -144,7 +148,8 @@ router.post("/thread", async (req, res) => {
     const thread = new Thread({
       threadId,
       title: title || "New Chat",
-      messages: []
+      messages: [],
+      userId: req.user.id // ✅ added
     });
 
     await thread.save();
@@ -171,7 +176,7 @@ router.patch("/thread/:threadId", async (req, res) => {
 
   try {
     const thread = await Thread.findOneAndUpdate(
-      { threadId },
+      { threadId, userId: req.user.id }, // ✅ user restriction
       { title: title.trim(), updatedAt: new Date() },
       { new: true }
     );
@@ -196,7 +201,7 @@ router.delete("/thread/:threadId", async (req, res) => {
   const { threadId } = req.params;
 
   try {
-    const deletedThread = await Thread.findOneAndDelete({ threadId });
+    const deletedThread = await Thread.findOneAndDelete({ threadId, userId: req.user.id }); // ✅ restricted
 
     if (!deletedThread) {
       return res.status(404).json({ error: "Thread not found" });
@@ -222,7 +227,7 @@ router.post("/chat", validateChatInput, async (req, res) => {
   }
 
   try {
-    let thread = await Thread.findOne({ threadId });
+    let thread = await Thread.findOne({ threadId, userId: req.user.id }); // ✅ user-restricted
 
     if (!thread) {
       return res.status(404).json({ 
@@ -230,30 +235,25 @@ router.post("/chat", validateChatInput, async (req, res) => {
       });
     }
 
-    // Add user message
     const userMessage = {
       role: "user",
       content: message.trim()
     };
     thread.messages.push(userMessage);
 
-    // Prepare conversation history for API
     const conversationHistory = thread.messages.map(msg => ({
       role: msg.role,
       content: msg.content
     }));
 
-    // Get AI response with full context
     const assistantReply = await getGroqAPIResponse(conversationHistory);
 
-    // Add assistant reply
     const assistantMessage = {
       role: "assistant",
       content: assistantReply
     };
     thread.messages.push(assistantMessage);
 
-    // Update title if this is the first message
     if (thread.messages.length === 2) {
       thread.title = message.slice(0, 50);
     }
@@ -265,8 +265,7 @@ router.post("/chat", validateChatInput, async (req, res) => {
       success: true,
       message: {
         role: "assistant",
-        content: assistantReply,
-        timestamp: assistantMessage.timestamp
+        content: assistantReply
       },
       threadId: thread.threadId
     });
@@ -278,73 +277,13 @@ router.post("/chat", validateChatInput, async (req, res) => {
   }
 });
 
-// ✅ Streaming chat endpoint (for real-time responses)
-router.post("/chat/stream", validateChatInput, async (req, res) => {
-  const { threadId, message } = req.body;
-
-  if (!threadId) {
-    return res.status(400).json({ error: "threadId is required" });
-  }
-
-  try {
-    const thread = await Thread.findOne({ threadId });
-
-    if (!thread) {
-      return res.status(404).json({ 
-        error: "Thread not found" 
-      });
-    }
-
-    // Set headers for SSE
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
-    // Add user message
-    thread.messages.push({
-      role: "user",
-      content: message.trim()
-    });
-
-    const conversationHistory = thread.messages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-
-    // Get AI response
-    const assistantReply = await getGroqAPIResponse(conversationHistory);
-
-    // Stream response in chunks
-    const words = assistantReply.split(" ");
-    for (let i = 0; i < words.length; i++) {
-      res.write(`data: ${JSON.stringify({ chunk: words[i] + " " })}\n\n`);
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-
-    // Save to database
-    thread.messages.push({
-      role: "assistant",
-      content: assistantReply
-    });
-    thread.updatedAt = new Date();
-    await thread.save();
-
-    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-    res.end();
-  } catch (err) {
-    console.error("❌ Streaming error:", err);
-    res.write(`data: ${JSON.stringify({ error: "Stream failed" })}\n\n`);
-    res.end();
-  }
-});
-
 // ✅ Clear all messages in a thread
 router.delete("/thread/:threadId/messages", async (req, res) => {
   const { threadId } = req.params;
 
   try {
     const thread = await Thread.findOneAndUpdate(
-      { threadId },
+      { threadId, userId: req.user.id }, // ✅ user-restricted
       { messages: [], updatedAt: new Date() },
       { new: true }
     );
