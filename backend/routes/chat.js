@@ -1,9 +1,10 @@
 import express from "express";
 import Thread from "../models/Thread.js";
+import "dotenv/config";
 
 const router = express.Router();
 
-// 🧠 Helper function — call Groq API instead of OpenAI
+// 🧠 Helper function — call Groq API (corrected)
 const getGroqAPIResponse = async (message) => {
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -13,9 +14,14 @@ const getGroqAPIResponse = async (message) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b", // Groq model
+        // ✅ Correct model name
+        model: "llama-3.3-70b-versatile",
         messages: [
-          { role: "system", content: "You are SamvaadGPT — a helpful and friendly assistant built by Satyam." },
+          {
+            role: "system",
+            content:
+              "You are SamvaadGPT — a friendly and intelligent assistant built by Satyam. Respond clearly and naturally.",
+          },
           { role: "user", content: message },
         ],
         temperature: 0.8,
@@ -24,14 +30,22 @@ const getGroqAPIResponse = async (message) => {
     });
 
     const data = await response.json();
-    return data?.choices?.[0]?.message?.content || "No response received.";
+    console.log("🔍 Groq API response:", JSON.stringify(data, null, 2));
+
+    // 🧠 Handle API errors explicitly
+    if (data.error) {
+      console.error("❌ Groq API Error:", data.error);
+      return `⚠️ Groq API Error: ${data.error.message || "Unknown issue"}`;
+    }
+
+    // ✅ Return AI reply
+    return data?.choices?.[0]?.message?.content?.trim() ||
+           "⚠️ I’m having trouble generating a response right now.";
   } catch (err) {
-    console.error("Groq API Error:", err);
+    console.error("❌ Groq API Error:", err);
     return "⚠️ Something went wrong while fetching AI response.";
   }
 };
-
-
 
 // ✅ Test route — verify MongoDB connection
 router.post("/test", async (req, res) => {
@@ -49,20 +63,16 @@ router.post("/test", async (req, res) => {
   }
 });
 
-
-
-// ✅ Get all threads
+// ✅ Get all threads (sorted by most recent)
 router.get("/thread", async (req, res) => {
   try {
     const threads = await Thread.find({}).sort({ updatedAt: -1 });
-    res.json(threads);
+    res.status(200).json(threads);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch threads" });
   }
 });
-
-
 
 // ✅ Get specific thread by ID
 router.get("/thread/:threadId", async (req, res) => {
@@ -75,14 +85,12 @@ router.get("/thread/:threadId", async (req, res) => {
       return res.status(404).json({ error: "Thread not found" });
     }
 
-    res.json(thread.messages);
+    res.status(200).json(thread.messages);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch chat" });
   }
 });
-
-
 
 // ✅ Delete a thread by ID
 router.delete("/thread/:threadId", async (req, res) => {
@@ -102,24 +110,22 @@ router.delete("/thread/:threadId", async (req, res) => {
   }
 });
 
-
-
 // ✅ Chat endpoint — send message and get Groq reply
 router.post("/chat", async (req, res) => {
   const { threadId, message } = req.body;
 
   if (!threadId || !message) {
-    return res.status(400).json({ error: "Missing required fields" });
+    return res.status(400).json({ error: "Missing required fields: threadId or message" });
   }
 
   try {
     let thread = await Thread.findOne({ threadId });
 
     if (!thread) {
-      // Create new thread
+      // Create a new thread if not found
       thread = new Thread({
         threadId,
-        title: message,
+        title: message.slice(0, 50), // limit title length
         messages: [{ role: "user", content: message }],
       });
     } else {
@@ -130,17 +136,16 @@ router.post("/chat", async (req, res) => {
     // Get AI response from Groq
     const assistantReply = await getGroqAPIResponse(message);
 
-    // Add AI reply to thread
+    // Add assistant reply
     thread.messages.push({ role: "assistant", content: assistantReply });
     thread.updatedAt = new Date();
 
-    // Save thread
     await thread.save();
 
-    res.json({ reply: assistantReply });
+    res.status(200).json({ reply: assistantReply });
   } catch (err) {
     console.error("Chat route error:", err);
-    res.status(500).json({ error: "Something went wrong" });
+    res.status(500).json({ error: "Something went wrong while processing chat" });
   }
 });
 
