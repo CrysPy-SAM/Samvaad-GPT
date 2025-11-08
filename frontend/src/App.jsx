@@ -406,6 +406,16 @@ function App() {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
+  // 🧹 Clear chat data automatically when user logs out
+useEffect(() => {
+  if (isGuest) {
+    setThreads([]);
+    setMessages([]);
+    setCurrentThreadId(null);
+  }
+}, [isGuest]);
+
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
