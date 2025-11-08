@@ -9,11 +9,9 @@ import rateLimit from "express-rate-limit";
 import chatRoutes from "./routes/chat.js";
 import fileRoutes from "./routes/fileAnalyze.js";
 import authRoutes from "./routes/auth.js";
-
-
+import twilioAuthRoutes from "./routes/twilioAuth.js";
 
 const app = express();
-app.use("/api/auth", authRoutes);
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -26,8 +24,8 @@ app.use(cors({
 
 // 🚦 Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: "Too many requests from this IP, please try again later."
 });
 app.use("/api/", limiter);
@@ -44,7 +42,7 @@ if (NODE_ENV === "development") {
   });
 }
 
-// 🏥 Health Check Route
+// 🏥 Health Check
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "healthy",
@@ -54,7 +52,9 @@ app.get("/health", (req, res) => {
   });
 });
 
-// 🔌 API Routes
+// ✅ API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/auth", twilioAuthRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/file", fileRoutes);
 
@@ -71,9 +71,7 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error("❌ Global Error:", err);
   res.status(err.status || 500).json({
-    error: NODE_ENV === "production" 
-      ? "Internal server error" 
-      : err.message,
+    error: NODE_ENV === "production" ? "Internal server error" : err.message,
     ...(NODE_ENV === "development" && { stack: err.stack })
   });
 });
@@ -89,7 +87,6 @@ const connectDB = async (retries = 5) => {
     console.log("✅ Connected to MongoDB successfully!");
   } catch (err) {
     console.error(`❌ MongoDB connection failed (${retries} retries left):`, err.message);
-    
     if (retries > 0) {
       console.log("🔄 Retrying connection in 5 seconds...");
       setTimeout(() => connectDB(retries - 1), 5000);
@@ -100,32 +97,29 @@ const connectDB = async (retries = 5) => {
   }
 };
 
-// 🔌 MongoDB Event Listeners
+// MongoDB Event Listeners
 mongoose.connection.on("disconnected", () => {
   console.warn("⚠️ MongoDB disconnected. Attempting to reconnect...");
 });
-
 mongoose.connection.on("error", (err) => {
   console.error("❌ MongoDB error:", err);
 });
 
-// ⚙️ Graceful Shutdown
+// Graceful Shutdown
 process.on("SIGTERM", async () => {
   console.log("🛑 SIGTERM received. Shutting down gracefully...");
   await mongoose.connection.close();
   process.exit(0);
 });
-
 process.on("SIGINT", async () => {
   console.log("🛑 SIGINT received. Shutting down gracefully...");
   await mongoose.connection.close();
   process.exit(0);
 });
 
-// ⚙️ Start Server
+// Start Server
 const startServer = async () => {
   await connectDB();
-  
   app.listen(PORT, () => {
     console.log(`🚀 SamvaadGPT server running on port ${PORT}`);
     console.log(`🌍 Environment: ${NODE_ENV}`);
