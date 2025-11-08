@@ -552,48 +552,61 @@ useEffect(() => {
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
+  
+    // 🧠 Guest Mode — Allow only 5 AI replies
+if (isGuest) {
+  const newCount = guestChatCount + 1;
 
-    if (isGuest) {
-      setIsLoading(true);
-      
-      const newCount = guestChatCount + 1;
-      setGuestChatCount(newCount);
+  // If guest already exceeded limit
+  if (newCount > GUEST_CHAT_LIMIT) {
+    setShowLoginPopup(true);
+    return;
+  }
 
-      setTimeout(() => {
-        let responseContent = "";
-        const remaining = GUEST_CHAT_LIMIT - newCount;
+  setGuestChatCount(newCount);
+  setIsLoading(true);
 
-        if (newCount >= GUEST_CHAT_LIMIT) {
-          responseContent = `🔒 You've reached your guest chat limit (${GUEST_CHAT_LIMIT} messages). Please log in or register to continue chatting with unlimited access!`;
-        } else if (newCount >= GUEST_CHAT_LIMIT - 1) {
-          responseContent = `👋 Hi! I'm SamvaadGPT. This is your last guest message! Please log in or register to continue unlimited conversations. (${remaining} message${remaining !== 1 ? 's' : ''} remaining)`;
-        } else if (newCount >= GUEST_CHAT_LIMIT - 2) {
-          responseContent = `Hello! I'm SamvaadGPT, created by Satyam Mishra. You have ${remaining} guest message${remaining !== 1 ? 's' : ''} remaining. Log in to unlock unlimited chats, save history, and upload files!`;
-        } else {
-          responseContent = `👋 Welcome to SamvaadGPT! I'm your AI assistant. Note: Guest users are limited to ${GUEST_CHAT_LIMIT} messages. You have ${remaining} message${remaining !== 1 ? 's' : ''} remaining. Please log in for unlimited access!`;
-        }
+  try {
+    // Call backend Groq API (real AI reply even for guests)
+    const res = await fetch(`${API_URL}/chat/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userMessage,
+        isGuest: true, // optional: you can handle differently on backend
+      }),
+    });
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: responseContent,
-            timestamp: new Date(),
-          },
-        ]);
-        setIsLoading(false);
+    const data = await res.json();
 
-        if (newCount >= GUEST_CHAT_LIMIT - 1) {
-          setShowLimitWarning(true);
-        }
-
-        if (newCount >= GUEST_CHAT_LIMIT) {
-          setTimeout(() => setShowLoginPopup(true), 1000);
-        }
-      }, 1000);
-
-      return;
+    if (data.success) {
+      // Add AI response to messages
+      setMessages((prev) => [...prev, data.message]);
+    } else {
+      throw new Error(data.error || "Failed to get AI reply");
     }
+  } catch (err) {
+    console.error("Guest AI Error:", err);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: "⚠️ Unable to reach AI right now. Please try again later.",
+        timestamp: new Date(),
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
+
+    // If reached 5th message, show login prompt
+    if (newCount >= GUEST_CHAT_LIMIT) {
+      setTimeout(() => setShowLoginPopup(true), 1000);
+    }
+  }
+
+  return;
+}
+
 
     setIsLoading(true);
     let threadId = currentThreadId;

@@ -73,8 +73,12 @@ const validateChatInput = (req, res, next) => {
   next();
 };
 
-// ✅ Protect all routes below with authMiddleware
-router.use(authMiddleware);
+// ✅ Protect all routes except /chat (guest mode allowed)
+router.use((req, res, next) => {
+  if (req.path === "/chat") return next(); // skip auth for /chat
+  return authMiddleware(req, res, next);
+});
+
 
 // ✅ Get all threads (user-specific, paginated)
 router.get("/threads", async (req, res) => {
@@ -218,40 +222,50 @@ router.delete("/thread/:threadId", async (req, res) => {
   }
 });
 
-// ✅ Chat endpoint — Send message and get AI reply
+// ✅ Chat endpoint — Send message and get AI reply (Guest or Logged user)
 router.post("/chat", validateChatInput, async (req, res) => {
-  const { threadId, message } = req.body;
-
-  if (!threadId) {
-    return res.status(400).json({ error: "threadId is required" });
-  }
+  const { threadId, message, isGuest } = req.body;
 
   try {
-    let thread = await Thread.findOne({ threadId, userId: req.user.id }); // ✅ user-restricted
+    // Guest user flow (no thread, no DB)
+    if (isGuest) {
+      console.log("🟢 Guest AI Request:", message);
 
-    if (!thread) {
-      return res.status(404).json({ 
-        error: "Thread not found. Please create a thread first." 
+      const conversation = [{ role: "user", content: message }];
+      const assistantReply = await getGroqAPIResponse(conversation);
+
+      return res.status(200).json({
+        success: true,
+        message: {
+          role: "assistant",
+          content: assistantReply,
+        },
       });
     }
 
-    const userMessage = {
-      role: "user",
-      content: message.trim()
-    };
+    // Logged-in user flow (requires thread)
+    if (!threadId) {
+      return res.status(400).json({ error: "threadId is required" });
+    }
+
+    const thread = await Thread.findOne({ threadId, userId: req.user.id });
+    if (!thread) {
+      return res
+        .status(404)
+        .json({ error: "Thread not found. Please create a thread first." });
+    }
+
+    const userMessage = { role: "user", content: message.trim() };
     thread.messages.push(userMessage);
 
-    const conversationHistory = thread.messages.map(msg => ({
+    const conversationHistory = thread.messages.map((msg) => ({
       role: msg.role,
-      content: msg.content
+      content: msg.content,
     }));
 
     const assistantReply = await getGroqAPIResponse(conversationHistory);
 
-    const assistantMessage = {
-      role: "assistant",
-      content: assistantReply
-    };
+    const assistantMessage = { role: "assistant", content: assistantReply };
     thread.messages.push(assistantMessage);
 
     if (thread.messages.length === 2) {
@@ -265,17 +279,18 @@ router.post("/chat", validateChatInput, async (req, res) => {
       success: true,
       message: {
         role: "assistant",
-        content: assistantReply
+        content: assistantReply,
       },
-      threadId: thread.threadId
+      threadId: thread.threadId,
     });
   } catch (err) {
     console.error("❌ Chat route error:", err);
-    res.status(500).json({ 
-      error: "Something went wrong while processing your message" 
+    res.status(500).json({
+      error: "Something went wrong while processing your message",
     });
   }
 });
+
 
 // ✅ Clear all messages in a thread
 router.delete("/thread/:threadId/messages", async (req, res) => {
