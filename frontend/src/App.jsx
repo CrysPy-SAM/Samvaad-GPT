@@ -13,7 +13,7 @@ import {
   Lock,
 } from "lucide-react";
 
-const API_URL = "http://localhost:8080/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 const GUEST_CHAT_LIMIT = 5;
 
 // Simple AuthContext implementation
