@@ -10,14 +10,194 @@ import {
   MessageSquare,
   Moon,
   Sun,
+  Lock,
 } from "lucide-react";
-import { useAuth } from "./context/AuthContext.jsx";
-import LoginPopup from "./components/LoginPopup.jsx";
 
 const API_URL = "http://localhost:8080/api";
+const GUEST_CHAT_LIMIT = 5;
 
-export default function App() {
-  const { user, token, logout, isGuest } = useAuth(); // ✅ include isGuest
+// Simple AuthContext implementation
+const AuthContext = React.createContext();
+
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [isGuest, setIsGuest] = useState(true);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    const savedToken = localStorage.getItem("token");
+    if (savedUser && savedToken) {
+      setUser(JSON.parse(savedUser));
+      setToken(savedToken);
+      setIsGuest(false);
+    } else {
+      setIsGuest(true);
+    }
+  }, []);
+
+  const login = (data) => {
+    setUser(data.user);
+    setToken(data.token);
+    setIsGuest(false);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("token", data.token);
+    localStorage.removeItem("guestMessages");
+    localStorage.removeItem("guestChatCount");
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    setIsGuest(true);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("guestMessages");
+    localStorage.removeItem("guestChatCount");
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, login, logout, isGuest }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+const useAuth = () => React.useContext(AuthContext);
+
+// Combined Login + Register Popup
+const LoginPopup = ({ onClose }) => {
+  const [mode, setMode] = useState("login"); // 'login' or 'register'
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { login } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    const endpoint =
+      mode === "login"
+        ? "http://localhost:8080/api/auth/login"
+        : "http://localhost:8080/api/auth/register";
+
+    const body =
+      mode === "register"
+        ? { name, email, password }
+        : { email, password };
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `${mode} failed`);
+
+      // For both login & register → save token + user
+      login({ user: data.user, token: data.token });
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-gray-900 text-white p-6 rounded-xl w-80 space-y-4 shadow-xl border border-gray-700"
+      >
+        <h2 className="text-xl font-bold text-center">
+          {mode === "login" ? "Login to Continue" : "Create an Account"}
+        </h2>
+
+        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+
+        {mode === "register" && (
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-2 rounded bg-gray-800 focus:outline-none"
+            required
+          />
+        )}
+
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-2 rounded bg-gray-800 focus:outline-none"
+          required
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-2 rounded bg-gray-800 focus:outline-none"
+          required
+        />
+
+        <div className="flex justify-between items-center mt-2">
+          <button
+            type="submit"
+            className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700"
+          >
+            {mode === "login" ? "Login" : "Register"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div className="text-center mt-3">
+          {mode === "login" ? (
+            <p className="text-sm text-gray-400">
+              New here?{" "}
+              <button
+                type="button"
+                onClick={() => setMode("register")}
+                className="text-blue-400 hover:underline"
+              >
+                Register
+              </button>
+            </p>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                className="text-blue-400 hover:underline"
+              >
+                Login
+              </button>
+            </p>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+};
+
+
+// Main App Component
+function App() {
+  const { user, token, logout, isGuest } = useAuth();
   const [threads, setThreads] = useState([]);
   const [currentThreadId, setCurrentThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -27,40 +207,48 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showLoginPopup, setShowLoginPopup] = useState(false); // ✅ popup state
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [guestChatCount, setGuestChatCount] = useState(0);
+  const [showLimitWarning, setShowLimitWarning] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Auto-scroll
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
   useEffect(scrollToBottom, [messages]);
 
-  // Save guest messages to localStorage automatically
-useEffect(() => {
-  if (isGuest) {
-    localStorage.setItem("guestMessages", JSON.stringify(messages));
-  }
-}, [messages, isGuest]);
+  useEffect(() => {
+    if (isGuest) {
+      const savedMessages = localStorage.getItem("guestMessages");
+      const savedCount = localStorage.getItem("guestChatCount");
+      
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      }
+      if (savedCount) {
+        setGuestChatCount(parseInt(savedCount));
+      }
+    }
+  }, [isGuest]);
 
+  useEffect(() => {
+    if (isGuest) {
+      localStorage.setItem("guestMessages", JSON.stringify(messages));
+    }
+  }, [messages, isGuest]);
 
-  // Fetch threads only if logged in
+  useEffect(() => {
+    if (isGuest) {
+      localStorage.setItem("guestChatCount", guestChatCount.toString());
+    }
+  }, [guestChatCount, isGuest]);
+
   useEffect(() => {
     if (!isGuest && token) fetchThreads();
   }, [token, isGuest]);
 
-  // Load guest chat from localStorage
-useEffect(() => {
-  if (isGuest) {
-    const saved = localStorage.getItem("guestMessages");
-    if (saved) setMessages(JSON.parse(saved));
-  }
-}, [isGuest]);
-
-
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -69,7 +257,6 @@ useEffect(() => {
     }
   }, [inputMessage]);
 
-  // ✅ Fetch threads
   const fetchThreads = async () => {
     try {
       const response = await fetch(`${API_URL}/chat/threads`, {
@@ -82,7 +269,6 @@ useEffect(() => {
     }
   };
 
-  // ✅ Create new thread (requires login)
   const createNewThread = async () => {
     if (isGuest) {
       setShowLoginPopup(true);
@@ -108,7 +294,6 @@ useEffect(() => {
     }
   };
 
-  // ✅ Load thread
   const loadThread = async (threadId) => {
     if (isGuest) {
       setShowLoginPopup(true);
@@ -126,7 +311,6 @@ useEffect(() => {
     }
   };
 
-  // ✅ Delete thread
   const deleteThread = async (threadId, e) => {
     e.stopPropagation();
     if (isGuest) {
@@ -150,9 +334,13 @@ useEffect(() => {
     }
   };
 
-  // ✅ Send message
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
+
+    if (isGuest && guestChatCount >= GUEST_CHAT_LIMIT) {
+      setShowLoginPopup(true);
+      return;
+    }
 
     const userMessage = inputMessage.trim();
     setInputMessage("");
@@ -163,17 +351,45 @@ useEffect(() => {
     };
     setMessages((prev) => [...prev, tempUserMsg]);
 
-    // ✅ Guest mode: no backend call
     if (isGuest) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "👋 You're in guest mode! Please log in to save or access chat history.",
-          timestamp: new Date(),
-        },
-      ]);
+      setIsLoading(true);
+      
+      const newCount = guestChatCount + 1;
+      setGuestChatCount(newCount);
+
+      setTimeout(() => {
+        let responseContent = "";
+        const remaining = GUEST_CHAT_LIMIT - newCount;
+
+        if (newCount >= GUEST_CHAT_LIMIT) {
+          responseContent = `🔒 You've reached your guest chat limit (${GUEST_CHAT_LIMIT} messages). Please log in or register to continue chatting with unlimited access!`;
+        } else if (newCount >= GUEST_CHAT_LIMIT - 1) {
+          responseContent = `👋 Hi! I'm SamvaadGPT. This is your last guest message! Please log in or register to continue unlimited conversations. (${remaining} message${remaining !== 1 ? 's' : ''} remaining)`;
+        } else if (newCount >= GUEST_CHAT_LIMIT - 2) {
+          responseContent = `Hello! I'm SamvaadGPT, created by Satyam Mishra. You have ${remaining} guest message${remaining !== 1 ? 's' : ''} remaining. Log in to unlock unlimited chats, save history, and upload files!`;
+        } else {
+          responseContent = `👋 Welcome to SamvaadGPT! I'm your AI assistant. Note: Guest users are limited to ${GUEST_CHAT_LIMIT} messages. You have ${remaining} message${remaining !== 1 ? 's' : ''} remaining. Please log in for unlimited access!`;
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: responseContent,
+            timestamp: new Date(),
+          },
+        ]);
+        setIsLoading(false);
+
+        if (newCount >= GUEST_CHAT_LIMIT - 1) {
+          setShowLimitWarning(true);
+        }
+
+        if (newCount >= GUEST_CHAT_LIMIT) {
+          setTimeout(() => setShowLoginPopup(true), 1000);
+        }
+      }, 1000);
+
       return;
     }
 
@@ -216,7 +432,6 @@ useEffect(() => {
     }
   };
 
-  // ✅ File upload (requires login)
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -246,7 +461,7 @@ useEffect(() => {
 
         const fileMsg = {
           role: "assistant",
-          content: `📁 **File Analysis: ${file.name}**\n\n${data.analysis}`,
+          content: `📄 **File Analysis: ${file.name}**\n\n${data.analysis}`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, fileMsg]);
@@ -282,7 +497,14 @@ useEffect(() => {
     });
   };
 
-  // ✅ RETURN JSX
+  const clearGuestChat = () => {
+    setMessages([]);
+    setGuestChatCount(0);
+    localStorage.removeItem("guestMessages");
+    localStorage.removeItem("guestChatCount");
+    setShowLimitWarning(false);
+  };
+
   return (
     <div
       className={`flex h-screen ${
@@ -297,7 +519,6 @@ useEffect(() => {
           darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
         } border-r transition-all duration-300 overflow-hidden flex flex-col`}
       >
-        {/* New Chat Button */}
         <div className="p-4 border-b border-gray-800">
           <button
             onClick={createNewThread}
@@ -312,7 +533,46 @@ useEffect(() => {
           </button>
         </div>
 
-        {/* Threads */}
+        {isGuest && (
+          <div className="p-4">
+            <div className={`${
+              darkMode ? "bg-blue-900/30 border-blue-700" : "bg-blue-50 border-blue-300"
+            } border rounded-lg p-3`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Lock size={16} className={darkMode ? "text-blue-400" : "text-blue-600"} />
+                <span className={`text-sm font-semibold ${
+                  darkMode ? "text-blue-300" : "text-blue-700"
+                }`}>
+                  Guest Mode
+                </span>
+              </div>
+              <p className={`text-xs ${
+                darkMode ? "text-blue-200" : "text-blue-600"
+              }`}>
+                {guestChatCount}/{GUEST_CHAT_LIMIT} messages used
+              </p>
+              <div className="mt-2 bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(guestChatCount / GUEST_CHAT_LIMIT) * 100}%` }}
+                />
+              </div>
+              {guestChatCount > 0 && (
+                <button
+                  onClick={clearGuestChat}
+                  className={`mt-3 w-full text-xs px-2 py-1 rounded ${
+                    darkMode
+                      ? "bg-gray-800 hover:bg-gray-700 text-gray-300"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                  }`}
+                >
+                  Clear Chat
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-2">
           {threads.length === 0 ? (
             <div
@@ -321,7 +581,7 @@ useEffect(() => {
               }`}
             >
               <p className="text-sm">
-                {isGuest ? "Guest mode active" : "No chats yet"}
+                {isGuest ? "Login to save chats" : "No chats yet"}
               </p>
             </div>
           ) : (
@@ -365,7 +625,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Settings */}
         <div
           className={`p-4 border-t ${
             darkMode ? "border-gray-800" : "border-gray-200"
@@ -389,7 +648,6 @@ useEffect(() => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <div
           className={`${
             darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
@@ -432,7 +690,18 @@ useEffect(() => {
             >
               👋 {isGuest ? "Guest" : user?.name}
             </span>
-            {!isGuest && (
+            {isGuest ? (
+              <button
+                onClick={() => setShowLoginPopup(true)}
+                className={`text-sm px-3 py-1 rounded ${
+                  darkMode
+                    ? "bg-blue-700 hover:bg-blue-600 text-white"
+                    : "bg-blue-500 hover:bg-blue-600 text-white"
+                } transition-colors`}
+              >
+                Login
+              </button>
+            ) : (
               <button
                 onClick={logout}
                 className={`text-sm px-3 py-1 rounded ${
@@ -447,7 +716,26 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* ✅ Chat area */}
+        {isGuest && showLimitWarning && guestChatCount < GUEST_CHAT_LIMIT && (
+          <div className={`${
+            darkMode ? "bg-yellow-900/20 border-yellow-700" : "bg-yellow-50 border-yellow-300"
+          } border-b px-4 py-2 flex items-center justify-between`}>
+            <p className={`text-sm ${
+              darkMode ? "text-yellow-200" : "text-yellow-800"
+            }`}>
+              ⚠️ You have {GUEST_CHAT_LIMIT - guestChatCount} message{GUEST_CHAT_LIMIT - guestChatCount !== 1 ? 's' : ''} remaining. Login for unlimited access!
+            </p>
+            <button
+              onClick={() => setShowLimitWarning(false)}
+              className={`text-sm ${
+                darkMode ? "text-yellow-400 hover:text-yellow-300" : "text-yellow-700 hover:text-yellow-900"
+              }`}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full">
@@ -473,6 +761,15 @@ useEffect(() => {
                 Ask me anything! I can help with coding, writing, analysis, and
                 more.
               </p>
+              {isGuest && (
+                <div className={`mt-4 px-4 py-2 rounded-lg ${
+                  darkMode ? "bg-blue-900/30 text-blue-300" : "bg-blue-100 text-blue-700"
+                }`}>
+                  <p className="text-sm">
+                    🎯 Guest Mode: {GUEST_CHAT_LIMIT} free messages • Login for unlimited access
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="max-w-3xl mx-auto space-y-6">
@@ -557,7 +854,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Input area */}
         <div
           className={`${
             darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
@@ -590,13 +886,13 @@ useEffect(() => {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isAnalyzing || isLoading}
+                disabled={isAnalyzing || isLoading || (isGuest && guestChatCount >= GUEST_CHAT_LIMIT)}
                 className={`p-2 rounded-lg ${
                   darkMode
                     ? "hover:bg-gray-700 text-gray-400 hover:text-gray-300"
                     : "hover:bg-gray-200 text-gray-600 hover:text-gray-700"
                 } disabled:opacity-50 transition-colors`}
-                title="Upload file"
+                title={isGuest ? "Login to upload files" : "Upload file"}
               >
                 <Upload size={20} />
               </button>
@@ -605,8 +901,12 @@ useEffect(() => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="Message Samvaad-GPT..."
-                disabled={isLoading || isAnalyzing}
+                placeholder={
+                  isGuest && guestChatCount >= GUEST_CHAT_LIMIT
+                    ? "Please login to continue chatting..."
+                    : "Message Samvaad-GPT..."
+                }
+                disabled={isLoading || isAnalyzing || (isGuest && guestChatCount >= GUEST_CHAT_LIMIT)}
                 className={`flex-1 bg-transparent ${
                   darkMode
                     ? "text-white placeholder-gray-500"
@@ -617,9 +917,14 @@ useEffect(() => {
               />
               <button
                 onClick={sendMessage}
-                disabled={!inputMessage.trim() || isLoading || isAnalyzing}
+                disabled={
+                  !inputMessage.trim() || 
+                  isLoading || 
+                  isAnalyzing || 
+                  (isGuest && guestChatCount >= GUEST_CHAT_LIMIT)
+                }
                 className={`p-2 rounded-lg transition-all ${
-                  inputMessage.trim() && !isLoading && !isAnalyzing
+                  inputMessage.trim() && !isLoading && !isAnalyzing && !(isGuest && guestChatCount >= GUEST_CHAT_LIMIT)
                     ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
                     : darkMode
                     ? "bg-gray-700 text-gray-500"
@@ -634,6 +939,7 @@ useEffect(() => {
                 darkMode ? "text-gray-600" : "text-gray-500"
               } mt-2 text-center`}
             >
+              {isGuest && `Guest: ${guestChatCount}/${GUEST_CHAT_LIMIT} messages used • `}
               Samvaad-GPT can make mistakes. Consider checking important
               information.
             </p>
@@ -645,5 +951,14 @@ useEffect(() => {
         <LoginPopup onClose={() => setShowLoginPopup(false)} />
       )}
     </div>
+  );
+}
+
+// Wrap App with AuthProvider
+export default function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   );
 }
