@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Plus, Trash2, Menu, X, Upload, Loader2, MessageSquare, Moon, Sun, Download } from 'lucide-react';
+import { Send, Plus, Trash2, Menu, X, Upload, Loader2, MessageSquare, Moon, Sun } from 'lucide-react';
+import { useAuth } from "./context/AuthContext.jsx"; // ✅ Auth context import
 
 const API_URL = 'http://localhost:8080/api';
 
 export default function App() {
+  const { user, token, logout } = useAuth(); // ✅ useAuth values
   const [threads, setThreads] = useState([]);
   const [currentThreadId, setCurrentThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -41,7 +43,9 @@ export default function App() {
   // Fetch all threads
   const fetchThreads = async () => {
     try {
-      const response = await fetch(`${API_URL}/chat/threads`);
+      const response = await fetch(`${API_URL}/chat/threads`, {
+        headers: { Authorization: `Bearer ${token}` }, // ✅ added token
+      });
       const data = await response.json();
       setThreads(data.threads || []);
     } catch (error) {
@@ -54,7 +58,10 @@ export default function App() {
     try {
       const response = await fetch(`${API_URL}/chat/thread`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`, // ✅ added token
+        },
         body: JSON.stringify({ title: 'New Chat' })
       });
       const data = await response.json();
@@ -71,7 +78,9 @@ export default function App() {
   // Load thread messages
   const loadThread = async (threadId) => {
     try {
-      const response = await fetch(`${API_URL}/chat/thread/${threadId}`);
+      const response = await fetch(`${API_URL}/chat/thread/${threadId}`, {
+        headers: { Authorization: `Bearer ${token}` }, // ✅ added token
+      });
       const data = await response.json();
       setCurrentThreadId(threadId);
       setMessages(data.messages || []);
@@ -87,7 +96,8 @@ export default function App() {
     
     try {
       await fetch(`${API_URL}/chat/thread/${threadId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }, // ✅ added token
       });
       if (currentThreadId === threadId) {
         setCurrentThreadId(null);
@@ -104,8 +114,6 @@ export default function App() {
     if (!inputMessage.trim() || isLoading) return;
 
     let threadId = currentThreadId;
-    
-    // Create thread if needed
     if (!threadId) {
       threadId = await createNewThread();
       if (!threadId) return;
@@ -122,7 +130,10 @@ export default function App() {
     try {
       const response = await fetch(`${API_URL}/chat/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`, // ✅ added token
+        },
         body: JSON.stringify({
           threadId: threadId,
           message: userMessage
@@ -163,13 +174,13 @@ export default function App() {
     try {
       const response = await fetch(`${API_URL}/file/analyze`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }, // ✅ added token
         body: formData
       });
       
       const data = await response.json();
       
       if (data.success) {
-        // Create thread if needed
         if (!currentThreadId) {
           await createNewThread();
         }
@@ -276,21 +287,31 @@ export default function App() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className={`${darkMode ? 'bg-gray-950 border-gray-800' : 'bg-white border-gray-200'} border-b px-4 py-3 flex items-center gap-3 flex-shrink-0`}>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700'} transition-colors`}
-          >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-          <div className="flex-1">
-            <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Samvaad-GPT
-            </h1>
-            <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Built by Satyam Mishra
-            </p>
+        {/* ✅ Single Clean Header */}
+        <div className={`${darkMode ? 'bg-gray-950 border-gray-800' : 'bg-white border-gray-200'} border-b px-4 py-3 flex items-center justify-between flex-shrink-0`}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700'} transition-colors`}
+            >
+              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+            <div>
+              <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Samvaad-GPT</h1>
+              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Built by Satyam Mishra</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              👋 {user?.name || "User"}
+            </span>
+            <button
+              onClick={logout}
+              className={`text-sm px-3 py-1 rounded ${darkMode ? "bg-red-700 hover:bg-red-600 text-white" : "bg-red-500 hover:bg-red-600 text-white"} transition-colors`}
+            >
+              Logout
+            </button>
           </div>
         </div>
 
