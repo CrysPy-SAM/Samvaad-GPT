@@ -17,6 +17,7 @@ router.post("/register", async (req, res) => {
     if (existing)
       return res.status(400).json({ error: "User already exists" });
 
+    // ✅ No need to hash manually — your model does it via pre("save")
     const user = new User({ name, email, password });
     await user.save();
 
@@ -42,11 +43,12 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
 
+    const user = await User.findOne({ email });
     if (!user)
       return res.status(400).json({ error: "User not found" });
 
+    // ✅ Use model’s comparePassword method
     const isMatch = await user.comparePassword(password);
     if (!isMatch)
       return res.status(400).json({ error: "Invalid credentials" });
@@ -59,6 +61,7 @@ router.post("/login", async (req, res) => {
 
     res.json({
       success: true,
+      message: "Login successful",
       token,
       user: { id: user._id, name: user.name, email: user.email },
     });

@@ -1,12 +1,10 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
-export default function Login() {
+export default function LoginPopup({ onClose }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleLogin = async (e) => {
@@ -21,60 +19,56 @@ export default function Login() {
       });
 
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || "Login failed");
 
-      // ✅ Save user & token in context and localStorage
       login({ user: data.user, token: data.token });
-
-      // ✅ Redirect to main page
-      navigate("/");
+      onClose(); // ✅ close popup after login
     } catch (err) {
-      console.error("Login error:", err);
       setError(err.message);
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <form
         onSubmit={handleLogin}
-        className="bg-gray-800 p-8 rounded-lg w-80 space-y-4"
+        className="bg-gray-900 text-white p-6 rounded-xl w-80 space-y-4 shadow-lg"
       >
-        <h2 className="text-2xl font-bold text-center">Login</h2>
-        {error && <p className="text-red-400 text-center">{error}</p>}
+        <h2 className="text-xl font-bold text-center">Login to Continue</h2>
+        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 rounded bg-gray-700 text-white outline-none"
+          className="w-full p-2 rounded bg-gray-800"
           required
         />
-
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-2 rounded bg-gray-700 text-white outline-none"
+          className="w-full p-2 rounded bg-gray-800"
           required
         />
 
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded font-semibold"
-        >
-          Login
-        </button>
-
-        <p className="text-center text-sm text-gray-400">
-          Don’t have an account?{" "}
-          <a href="/register" className="text-blue-400 hover:underline">
-            Register
-          </a>
-        </p>
+        <div className="flex justify-between mt-2">
+          <button
+            type="submit"
+            className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            Cancel
+          </button>
+        </div>
       </form>
     </div>
   );
