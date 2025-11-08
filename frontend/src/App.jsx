@@ -144,12 +144,13 @@ const LoginPopup = ({ onClose }) => {
       const res = await fetch(`${API_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          phone: form.phone, 
-          code: form.otp,
-          name: form.name || `User-${form.phone.slice(-4)}`,
-          createIfNotExist: true
-        }),
+       body: JSON.stringify({ 
+  phone: form.phone, 
+  otp: form.otp, // ✅ correct key name
+  name: form.name || `User-${form.phone.slice(-4)}`,
+  createIfNotExist: true
+}),
+
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "OTP verification failed");

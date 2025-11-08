@@ -2,7 +2,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import "dotenv/config";
-// import twilio from "twilio";
+import twilio from "twilio";
 
 const router = express.Router();
 
@@ -118,9 +118,16 @@ router.post("/verify-otp", async (req, res) => {
 
     let user = await User.findOne({ phone });
     if (!user) {
-      user = new User({ phone, phoneVerified: true });
-      await user.save();
-    }
+  user = new User({
+    name: `User-${phone.slice(-4)}`, // ✅ Default name
+    phone,
+    phoneVerified: true,
+    email: `${phone}@guest.samvaad.com`, // optional fallback email
+    password: Math.random().toString(36).slice(-8), // random password
+  });
+  await user.save();
+}
+
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
