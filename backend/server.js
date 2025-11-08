@@ -9,7 +9,7 @@ import rateLimit from "express-rate-limit";
 import chatRoutes from "./routes/chat.js";
 import fileRoutes from "./routes/fileAnalyze.js";
 import authRoutes from "./routes/auth.js";
-import twilioAuthRoutes from "./routes/twilioAuth.js";
+// import twilioAuthRoutes from "./routes/twilioAuth.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -54,7 +54,7 @@ app.get("/health", (req, res) => {
 
 // ✅ API Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/auth", twilioAuthRoutes);
+// app.use("/api/auth", twilioAuthRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/file", fileRoutes);
 

@@ -65,135 +65,327 @@ const AuthProvider = ({ children }) => {
 
 const useAuth = () => React.useContext(AuthContext);
 
-// Combined Login + Register Popup
+// Enhanced Login Popup Component with Email/Password and Phone/OTP
 const LoginPopup = ({ onClose }) => {
-  const [mode, setMode] = useState("login"); // 'login' or 'register'
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const { login } = useAuth();
 
-  const handleSubmit = async (e) => {
+  const [mode, setMode] = useState("phone"); // 'phone' | 'email'
+  const [isRegister, setIsRegister] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    otp: "",
+  });
+  const [isOTPSent, setIsOTPSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  // 📧 Email Login/Register
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    const endpoint =
-      mode === "login"
-        ? "http://localhost:8080/api/auth/login"
-        : "http://localhost:8080/api/auth/register";
-
-    const body =
-      mode === "register"
-        ? { name, email, password }
-        : { email, password };
-
+    setLoading(true);
     try {
-      const res = await fetch(endpoint, {
+      const endpoint = isRegister ? "/register" : "/login";
+      const res = await fetch(`${API_URL}/auth${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+        }),
       });
-
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `${mode} failed`);
-
-      // For both login & register → save token + user
-      login({ user: data.user, token: data.token });
+      if (!data.success) throw new Error(data.error || "Failed");
+      login(data);
       onClose();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 📱 Send OTP (Phone)
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: form.phone }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to send OTP");
+      setIsOTPSent(true);
+      setError("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 📱 Verify OTP
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          phone: form.phone, 
+          code: form.otp,
+          name: form.name || `User-${form.phone.slice(-4)}`,
+          createIfNotExist: true
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "OTP verification failed");
+      login(data);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-gray-900 text-white p-6 rounded-xl w-80 space-y-4 shadow-xl border border-gray-700"
-      >
-        <h2 className="text-xl font-bold text-center">
-          {mode === "login" ? "Login to Continue" : "Create an Account"}
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+      <div className="bg-gray-900 text-white rounded-2xl p-8 w-[380px] relative shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-4 text-gray-400 hover:text-gray-100 text-xl"
+        >
+          ✕
+        </button>
+
+        <h2 className="text-2xl font-bold text-center mb-3">
+          {isRegister ? "Create Account" : "Welcome Back"} 👋
         </h2>
 
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+        {/* Toggle: Phone / Email */}
+        <div className="flex justify-center gap-2 mb-4">
+          <button
+            onClick={() => {
+              setMode("phone");
+              setIsOTPSent(false);
+              setError("");
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === "phone"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            📱 Phone
+          </button>
+          <button
+            onClick={() => {
+              setMode("email");
+              setError("");
+              setIsOTPSent(false);
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === "email"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            📧 Email
+          </button>
+        </div>
 
-        {mode === "register" && (
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full p-2 rounded bg-gray-800 focus:outline-none"
-            required
-          />
+        {error && (
+          <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 mb-3">
+            <p className="text-red-400 text-sm text-center">{error}</p>
+          </div>
         )}
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 rounded bg-gray-800 focus:outline-none"
-          required
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-2 rounded bg-gray-800 focus:outline-none"
-          required
-        />
-
-        <div className="flex justify-between items-center mt-2">
-          <button
-            type="submit"
-            className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700"
+        {/* PHONE LOGIN (OTP Flow) */}
+        {mode === "phone" && (
+          <form
+            onSubmit={isOTPSent ? handleVerifyOTP : handleSendOTP}
+            className="flex flex-col gap-3"
           >
-            {mode === "login" ? "Login" : "Register"}
-          </button>
+            {!isOTPSent && (
+              <input
+                type="text"
+                name="name"
+                placeholder="Your Name (Optional)"
+                value={form.name}
+                onChange={handleChange}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            )}
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-sm"
-          >
-            Cancel
-          </button>
-        </div>
+            <input
+              type="tel"
+              name="phone"
+              placeholder="Phone Number (e.g., +919876543210)"
+              value={form.phone}
+              onChange={handleChange}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+              required
+              disabled={isOTPSent}
+            />
 
-        <div className="text-center mt-3">
-          {mode === "login" ? (
-            <p className="text-sm text-gray-400">
-              New here?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("register")}
-                className="text-blue-400 hover:underline"
-              >
-                Register
-              </button>
-            </p>
-          ) : (
-            <p className="text-sm text-gray-400">
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("login")}
-                className="text-blue-400 hover:underline"
-              >
-                Login
-              </button>
-            </p>
-          )}
-        </div>
-      </form>
+            {isOTPSent && (
+              <>
+                <input
+                  type="text"
+                  name="otp"
+                  placeholder="Enter 6-digit OTP"
+                  value={form.otp}
+                  onChange={handleChange}
+                  maxLength={6}
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors text-center text-xl tracking-widest"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOTPSent(false);
+                    setForm({ ...form, otp: "" });
+                  }}
+                  className="text-sm text-blue-400 hover:text-blue-300 text-center"
+                >
+                  Change Phone Number
+                </button>
+              </>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg py-3 font-medium transition-colors"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="animate-spin" size={18} />
+                  Please wait...
+                </span>
+              ) : isOTPSent ? (
+                "Verify OTP"
+              ) : (
+                "Send OTP"
+              )}
+            </button>
+
+            {isOTPSent && (
+              <p className="text-xs text-center text-gray-400 mt-1">
+                Didn't receive? Wait 30s to resend
+              </p>
+            )}
+
+            <button
+              onClick={onClose}
+              type="button"
+              className="text-sm text-gray-400 mt-1 hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </form>
+        )}
+
+        {/* EMAIL LOGIN / REGISTER */}
+        {mode === "email" && (
+          <form onSubmit={handleEmailSubmit} className="flex flex-col gap-3">
+            {isRegister && (
+              <input
+                type="text"
+                name="name"
+                placeholder="Full Name"
+                value={form.name}
+                onChange={handleChange}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                required
+              />
+            )}
+            <input
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={form.email}
+              onChange={handleChange}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+              required
+            />
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={handleChange}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+              required
+              minLength={6}
+            />
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg py-3 font-medium transition-colors"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="animate-spin" size={18} />
+                  Please wait...
+                </span>
+              ) : isRegister ? (
+                "Create Account"
+              ) : (
+                "Login"
+              )}
+            </button>
+
+            <button
+              onClick={onClose}
+              type="button"
+              className="text-sm text-gray-400 mt-1 hover:text-gray-200"
+            >
+              Cancel
+            </button>
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-2 bg-gray-900 text-gray-400">
+                  {isRegister ? "Already have an account?" : "New to SamvaadGPT?"}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setError("");
+              }}
+              className="text-center text-sm text-blue-400 hover:text-blue-300 font-medium"
+            >
+              {isRegister ? "Login Instead" : "Create Account"}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   );
 };
-
 
 // Main App Component
 function App() {
