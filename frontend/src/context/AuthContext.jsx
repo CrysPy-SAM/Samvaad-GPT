@@ -1,6 +1,5 @@
 import { createContext, useState, useEffect } from "react";
 import { STORAGE_KEYS } from "../utils/constants";
-import { useChat } from "../hooks/useChat";
 
 export const AuthContext = createContext();
 
@@ -9,9 +8,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [isGuest, setIsGuest] = useState(true);
   const [loading, setLoading] = useState(true);
-  const { clearChat } = useChat(); // ✅ Access chat reset function
 
-  // Load saved user on app start
+  // ✅ Load saved user/token from localStorage when app starts
   useEffect(() => {
     const savedUser = localStorage.getItem(STORAGE_KEYS.USER);
     const savedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
@@ -23,10 +21,11 @@ export const AuthProvider = ({ children }) => {
     } else {
       setIsGuest(true);
     }
+
     setLoading(false);
   }, []);
 
-  // ✅ Login logic
+  // ✅ Handle login
   const login = (data) => {
     setUser(data.user);
     setToken(data.token);
@@ -40,14 +39,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(STORAGE_KEYS.GUEST_COUNT);
   };
 
-  // ✅ Logout logic (clears chat too)
+  // ✅ Handle logout
   const logout = () => {
-    clearChat(); // 💥 Instantly reset all chat data
-
     setUser(null);
     setToken(null);
     setIsGuest(true);
 
+    // Clear localStorage completely for safety
     localStorage.removeItem(STORAGE_KEYS.USER);
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.GUEST_MESSAGES);
@@ -56,7 +54,14 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, isGuest, loading }}
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        isGuest,
+        loading,
+      }}
     >
       {children}
     </AuthContext.Provider>
