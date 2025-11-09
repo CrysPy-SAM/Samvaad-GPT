@@ -11,10 +11,11 @@ export const authAPI = {
     return response.data;
   },
 
-  sendOTP: async (phone) => {
-    const response = await apiClient.post("/auth/send-otp", { phone });
-    return response.data;
-  },
+  sendOTP: async (phone, name) => {
+  const response = await apiClient.post("/auth/send-otp", { phone, name });
+  return response.data;
+},
+
 
   verifyOTP: async (phone, otp, name) => {
     const response = await apiClient.post("/auth/verify-otp", { phone, otp, name });

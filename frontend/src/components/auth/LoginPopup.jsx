@@ -46,21 +46,33 @@ export const LoginPopup = ({ onClose }) => {
     }
   };
 
-  // Send OTP
-  const handleSendOTP = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+// Send OTP
+const handleSendOTP = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
-    try {
-      await authAPI.sendOTP(form.phone);
-      setIsOTPSent(true);
-    } catch (err) {
-      setError(err.response?.data?.error || "Failed to send OTP");
-    } finally {
+  try {
+    // Make name required before sending OTP
+    if (!form.name || !form.name.trim()) {
+      setError("Please enter your name before requesting OTP");
       setLoading(false);
+      return;
     }
-  };
+
+    // send OTP (no backend change needed; still sends phone only)
+   await authAPI.sendOTP(form.phone, form.name);
+
+
+    // mark OTP sent so UI shows OTP input
+    setIsOTPSent(true);
+  } catch (err) {
+    setError(err.response?.data?.error || "Failed to send OTP");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Verify OTP
   const handleVerifyOTP = async (e) => {
@@ -139,12 +151,14 @@ export const LoginPopup = ({ onClose }) => {
           >
             {!isOTPSent && (
               <Input
-                type="text"
-                name="name"
-                placeholder="Your Name (Optional)"
-                value={form.name}
-                onChange={handleChange}
-              />
+  type="text"
+  name="name"
+  placeholder="Enter your full name"
+  value={form.name}
+  onChange={handleChange}
+  required
+/>
+
             )}
 
             <Input

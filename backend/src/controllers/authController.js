@@ -70,67 +70,80 @@ export const authController = {
 
   // Send OTP (Phone Auth)
   sendOTP: async (req, res, next) => {
-    try {
-      const { phone } = req.body;
+  try {
+    const { phone, name } = req.body;
 
-      if (!phone) {
-        throw new ApiError(400, "Phone number required");
-      }
-
-      await twilioService.sendOTP(phone);
-
-      logger.info(`OTP sent to: ${phone}`);
-
-      res.json({
-        success: true,
-        message: "OTP sent successfully",
-      });
-    } catch (err) {
-      next(err);
+    if (!phone) {
+      throw new ApiError(400, "Phone number required");
     }
-  },
 
-  // Verify OTP (Phone Auth)
-  verifyOTP: async (req, res, next) => {
-    try {
-      const { phone, otp, name } = req.body;
+    await twilioService.sendOTP(phone);
 
-      if (!phone || !otp) {
-        throw new ApiError(400, "Phone and OTP required");
-      }
+    logger.info(`OTP sent to: ${phone}${name ? ` (Name: ${name})` : ""}`);
 
-      const isVerified = await twilioService.verifyOTP(phone, otp);
+    res.json({
+      success: true,
+      message: "OTP sent successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+},
 
-      if (!isVerified) {
-        throw new ApiError(400, "Invalid or expired OTP");
-      }
+// Verify OTP (Phone Auth)
+verifyOTP: async (req, res, next) => {
+  try {
+    const { phone, otp, name } = req.body;
 
-      let user = await User.findOne({ phone });
+    if (!phone || !otp) {
+      throw new ApiError(400, "Phone and OTP required");
+    }
 
-      if (!user) {
-        user = new User({
-          name: name || `User-${phone.slice(-4)}`,
-          phone,
-          phoneVerified: true,
-          email: `${phone}@guest.samvaad.com`,
-          password: Math.random().toString(36).slice(-8),
-        });
+    // ✅ Verify OTP via Twilio
+    const isVerified = await twilioService.verifyOTP(phone, otp);
+    if (!isVerified) {
+      throw new ApiError(400, "Invalid or expired OTP");
+    }
+
+    // ✅ Find user by phone
+    let user = await User.findOne({ phone });
+
+    if (!user) {
+      // 👤 Create new user with name
+      user = new User({
+        name: name?.trim() || `User-${phone.slice(-4)}`,
+        phone,
+        phoneVerified: true,
+        email: `${phone}@guest.samvaad.com`,
+        password: Math.random().toString(36).slice(-8),
+      });
+      await user.save();
+      logger.success(`New user created via phone: ${phone}`);
+    } else {
+      // 🔁 Update existing user's name if not set or generic
+      if (name && (!user.name || user.name.startsWith("User-"))) {
+        user.name = name.trim();
         await user.save();
-        logger.success(`New user created via phone: ${phone}`);
+        logger.info(`User name updated for ${phone}: ${user.name}`);
       }
-
-      const token = jwt.sign({ id: user._id }, ENV.JWT_SECRET, {
-        expiresIn: ENV.JWT_EXPIRES_IN,
-      });
-
-      res.json({
-        success: true,
-        message: "OTP verified successfully",
-        token,
-        user: { id: user._id, name: user.name, phone },
-      });
-    } catch (err) {
-      next(err);
     }
-  },
+
+    // ✅ Generate token
+    const token = jwt.sign(
+      { id: user._id, phone: user.phone, email: user.email },
+      ENV.JWT_SECRET,
+      { expiresIn: ENV.JWT_EXPIRES_IN }
+    );
+
+    // ✅ Send proper response
+    res.json({
+      success: true,
+      message: "OTP verified successfully",
+      token,
+      user: { id: user._id, name: user.name, phone },
+    });
+  } catch (err) {
+    next(err);
+  }
+},
 };
