@@ -1,16 +1,18 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect } from "react";
+import { STORAGE_KEYS } from "../utils/constants";
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isGuest, setIsGuest] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    const savedToken = localStorage.getItem("token");
+    const savedUser = localStorage.getItem(STORAGE_KEYS.USER);
+    const savedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    
     if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
       setToken(savedToken);
@@ -18,18 +20,19 @@ export const AuthProvider = ({ children }) => {
     } else {
       setIsGuest(true);
     }
+    setLoading(false);
   }, []);
 
   const login = (data) => {
     setUser(data.user);
     setToken(data.token);
     setIsGuest(false);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("token", data.token);
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+    localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
     
-    // Clear guest data after successful login
-    localStorage.removeItem("guestMessages");
-    localStorage.removeItem("guestChatCount");
+    // Clear guest data
+    localStorage.removeItem(STORAGE_KEYS.GUEST_MESSAGES);
+    localStorage.removeItem(STORAGE_KEYS.GUEST_COUNT);
   };
 
   const logout = () => {
@@ -37,18 +40,15 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setIsGuest(true);
     
-    // Clear all stored data
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("guestMessages");
-    localStorage.removeItem("guestChatCount");
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.GUEST_MESSAGES);
+    localStorage.removeItem(STORAGE_KEYS.GUEST_COUNT);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isGuest }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isGuest, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
-
-export const useAuth = () => useContext(AuthContext);
