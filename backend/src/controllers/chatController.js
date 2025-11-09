@@ -5,10 +5,12 @@ import { groqService } from "../services/groqService.js";
 import { logger } from "../utils/logger.js";
 
 export const chatController = {
-  // Get all threads for user
+  // ✅ Get all threads for user
   getThreads: async (req, res, next) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.id || req.user?._id;
+      if (!userId) throw new ApiError(401, "Unauthorized");
+
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const skip = (page - 1) * limit;
@@ -45,17 +47,15 @@ export const chatController = {
     }
   },
 
-  // Get specific thread
+  // ✅ Get a specific thread
   getThread: async (req, res, next) => {
     try {
       const { threadId } = req.params;
-      const userId = req.user.id;
+      const userId = req.user?.id || req.user?._id;
+      if (!userId) throw new ApiError(401, "Unauthorized");
 
       const thread = await Thread.findOne({ threadId, userId }).lean();
-
-      if (!thread) {
-        throw new ApiError(404, "Thread not found");
-      }
+      if (!thread) throw new ApiError(404, "Thread not found");
 
       res.status(200).json({
         threadId: thread.threadId,
@@ -69,22 +69,23 @@ export const chatController = {
     }
   },
 
-  // Create new thread
+  // ✅ Create new thread
   createThread: async (req, res, next) => {
     try {
       const { title } = req.body;
-      const userId = req.user.id;
+      const userId = req.user?.id || req.user?._id;
+      if (!userId) throw new ApiError(401, "Unauthorized");
+
       const threadId = uuidv4();
 
       const thread = new Thread({
         threadId,
-        title: title || "New Chat",
+        title: title?.trim() || "New Chat",
         messages: [],
         userId,
       });
 
       await thread.save();
-
       logger.info(`Thread created: ${threadId} for user: ${userId}`);
 
       res.status(201).json({
@@ -97,12 +98,13 @@ export const chatController = {
     }
   },
 
-  // Update thread title
+  // ✅ Update thread title
   updateThread: async (req, res, next) => {
     try {
       const { threadId } = req.params;
       const { title } = req.body;
-      const userId = req.user.id;
+      const userId = req.user?.id || req.user?._id;
+      if (!userId) throw new ApiError(401, "Unauthorized");
 
       if (!title || title.trim().length === 0) {
         throw new ApiError(400, "Title is required");
@@ -114,9 +116,7 @@ export const chatController = {
         { new: true }
       );
 
-      if (!thread) {
-        throw new ApiError(404, "Thread not found");
-      }
+      if (!thread) throw new ApiError(404, "Thread not found");
 
       res.status(200).json({
         threadId: thread.threadId,
@@ -128,20 +128,17 @@ export const chatController = {
     }
   },
 
-  // Delete thread
+  // ✅ Delete thread
   deleteThread: async (req, res, next) => {
     try {
       const { threadId } = req.params;
-      const userId = req.user.id;
+      const userId = req.user?.id || req.user?._id;
+      if (!userId) throw new ApiError(401, "Unauthorized");
 
       const deletedThread = await Thread.findOneAndDelete({ threadId, userId });
-
-      if (!deletedThread) {
-        throw new ApiError(404, "Thread not found");
-      }
+      if (!deletedThread) throw new ApiError(404, "Thread not found");
 
       logger.info(`Thread deleted: ${threadId}`);
-
       res.status(200).json({
         success: true,
         message: "Thread deleted successfully",
@@ -152,15 +149,21 @@ export const chatController = {
     }
   },
 
-  // Send chat message
+  // ✅ Send message (guest + logged-in)
   sendMessage: async (req, res, next) => {
     try {
       const { threadId, message, isGuest } = req.body;
+      const userId = req.user?.id || req.user?._id;
+      const isAuthenticated = Boolean(userId && !isGuest);
 
-      // Guest user flow (no thread, no DB)
-      if (isGuest) {
+      if (!message || message.trim().length === 0) {
+        throw new ApiError(400, "Message content is required");
+      }
+
+      // 🌐 Guest Chat Flow
+      if (!isAuthenticated) {
         logger.info("Guest AI Request");
-        
+
         const conversation = [{ role: "user", content: message }];
         const assistantReply = await groqService.getAIResponse(conversation);
 
@@ -169,22 +172,20 @@ export const chatController = {
           message: {
             role: "assistant",
             content: assistantReply,
+            timestamp: new Date(),
           },
         });
       }
 
-      // Logged-in user flow
+      // 👤 Logged-in Chat Flow
       if (!threadId) {
-        throw new ApiError(400, "threadId is required");
+        throw new ApiError(400, "Thread ID is required");
       }
 
-      const userId = req.user.id;
       const thread = await Thread.findOne({ threadId, userId });
+      if (!thread) throw new ApiError(404, "Thread not found. Please create a thread first.");
 
-      if (!thread) {
-        throw new ApiError(404, "Thread not found. Please create a thread first.");
-      }
-
+      // Save user message
       const userMessage = { role: "user", content: message.trim() };
       thread.messages.push(userMessage);
 
@@ -193,12 +194,12 @@ export const chatController = {
         content: msg.content,
       }));
 
+      // Get AI response
       const assistantReply = await groqService.getAIResponse(conversationHistory);
-
       const assistantMessage = { role: "assistant", content: assistantReply };
       thread.messages.push(assistantMessage);
 
-      // Auto-generate title from first message
+      // Auto title generation
       if (thread.messages.length === 2) {
         thread.title = message.slice(0, 50);
       }
@@ -221,11 +222,12 @@ export const chatController = {
     }
   },
 
-  // Clear all messages in thread
+  // ✅ Clear all messages in thread
   clearMessages: async (req, res, next) => {
     try {
       const { threadId } = req.params;
-      const userId = req.user.id;
+      const userId = req.user?.id || req.user?._id;
+      if (!userId) throw new ApiError(401, "Unauthorized");
 
       const thread = await Thread.findOneAndUpdate(
         { threadId, userId },
@@ -233,9 +235,7 @@ export const chatController = {
         { new: true }
       );
 
-      if (!thread) {
-        throw new ApiError(404, "Thread not found");
-      }
+      if (!thread) throw new ApiError(404, "Thread not found");
 
       res.status(200).json({
         success: true,
