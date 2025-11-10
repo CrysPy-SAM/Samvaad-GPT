@@ -13,15 +13,20 @@
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "axios": "^1.6.7",
+    "framer-motion": "^12.23.24",
     "highlight.js": "^11.11.1",
+    "katex": "^0.16.25",
     "lucide-react": "^0.263.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^8.0.7",
     "react-router-dom": "^7.9.5",
+    "react-syntax-highlighter": "^16.1.0",
     "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
     "remark-emoji": "^5.0.2",
     "remark-gfm": "^3.0.1",
+    "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0"
   },
   "devDependencies": {

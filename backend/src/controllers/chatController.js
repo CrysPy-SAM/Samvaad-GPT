@@ -1,7 +1,8 @@
 import Thread from "../models/Thread.js";
+import User from "../models/User.js";
 import { v4 as uuidv4 } from "uuid";
 import { ApiError } from "../utils/response.js";
-import { groqService } from "../services/groqService.js";
+import { aiService } from "../services/aiService.js";
 import { logger } from "../utils/logger.js";
 
 export const chatController = {
@@ -17,7 +18,7 @@ export const chatController = {
 
       const [threads, total] = await Promise.all([
         Thread.find({ userId })
-          .select("threadId title updatedAt createdAt messages")
+          .select("threadId title updatedAt createdAt messages settings")
           .sort({ updatedAt: -1 })
           .skip(skip)
           .limit(limit)
@@ -61,6 +62,7 @@ export const chatController = {
         threadId: thread.threadId,
         title: thread.title,
         messages: thread.messages,
+        settings: thread.settings,
         createdAt: thread.createdAt,
         updatedAt: thread.updatedAt,
       });
@@ -72,9 +74,13 @@ export const chatController = {
   // ✅ Create new thread
   createThread: async (req, res, next) => {
     try {
-      const { title } = req.body;
+      const { title, modelMode } = req.body;
       const userId = req.user?.id || req.user?._id;
       if (!userId) throw new ApiError(401, "Unauthorized");
+
+      // Get user's preferred model
+      const user = await User.findById(userId);
+      const preferredModel = modelMode || user?.preferences?.aiModel || "fast";
 
       const threadId = uuidv4();
 
@@ -83,14 +89,18 @@ export const chatController = {
         title: title?.trim() || "New Chat",
         messages: [],
         userId,
+        settings: {
+          model: preferredModel,
+        },
       });
 
       await thread.save();
-      logger.info(`Thread created: ${threadId} for user: ${userId}`);
+      logger.info(`Thread created: ${threadId} with model: ${preferredModel}`);
 
       res.status(201).json({
         threadId: thread.threadId,
         title: thread.title,
+        settings: thread.settings,
         createdAt: thread.createdAt,
       });
     } catch (err) {
@@ -98,21 +108,27 @@ export const chatController = {
     }
   },
 
-  // ✅ Update thread title
+  // ✅ Update thread title or settings
   updateThread: async (req, res, next) => {
     try {
       const { threadId } = req.params;
-      const { title } = req.body;
+      const { title, modelMode } = req.body;
       const userId = req.user?.id || req.user?._id;
       if (!userId) throw new ApiError(401, "Unauthorized");
 
-      if (!title || title.trim().length === 0) {
-        throw new ApiError(400, "Title is required");
+      const updateData = { updatedAt: new Date() };
+      
+      if (title && title.trim().length > 0) {
+        updateData.title = title.trim();
+      }
+      
+      if (modelMode) {
+        updateData["settings.model"] = modelMode;
       }
 
       const thread = await Thread.findOneAndUpdate(
         { threadId, userId },
-        { title: title.trim(), updatedAt: new Date() },
+        updateData,
         { new: true }
       );
 
@@ -121,6 +137,7 @@ export const chatController = {
       res.status(200).json({
         threadId: thread.threadId,
         title: thread.title,
+        settings: thread.settings,
         updatedAt: thread.updatedAt,
       });
     } catch (err) {
@@ -149,10 +166,10 @@ export const chatController = {
     }
   },
 
-  // ✅ Send message (guest + logged-in)
+  // ✅ Send message (guest + logged-in) with model selection
   sendMessage: async (req, res, next) => {
     try {
-      const { threadId, message, isGuest } = req.body;
+      const { threadId, message, isGuest, modelMode } = req.body;
       const userId = req.user?.id || req.user?._id;
       const isAuthenticated = Boolean(userId && !isGuest);
 
@@ -165,7 +182,11 @@ export const chatController = {
         logger.info("Guest AI Request");
 
         const conversation = [{ role: "user", content: message }];
-        const assistantReply = await groqService.getAIResponse(conversation);
+        const selectedModel = modelMode || "fast";
+        const assistantReply = await aiService.getAIResponse(
+          conversation,
+          selectedModel
+        );
 
         return res.status(200).json({
           success: true,
@@ -174,6 +195,7 @@ export const chatController = {
             content: assistantReply,
             timestamp: new Date(),
           },
+          modelUsed: selectedModel,
         });
       }
 
@@ -194,9 +216,25 @@ export const chatController = {
         content: msg.content,
       }));
 
+      // Get model preference (from request, thread, or user)
+      let selectedModel = modelMode || thread.settings?.model;
+      if (!selectedModel) {
+        const user = await User.findById(userId);
+        selectedModel = user?.preferences?.aiModel || "fast";
+      }
+
       // Get AI response
-      const assistantReply = await groqService.getAIResponse(conversationHistory);
-      const assistantMessage = { role: "assistant", content: assistantReply };
+      const assistantReply = await aiService.getAIResponse(
+        conversationHistory,
+        selectedModel
+      );
+      const assistantMessage = { 
+        role: "assistant", 
+        content: assistantReply,
+        metadata: {
+          model: selectedModel,
+        }
+      };
       thread.messages.push(assistantMessage);
 
       // Auto title generation
@@ -207,7 +245,7 @@ export const chatController = {
       thread.updatedAt = new Date();
       await thread.save();
 
-      logger.info(`Message sent in thread: ${threadId}`);
+      logger.info(`Message sent in thread: ${threadId} using model: ${selectedModel}`);
 
       res.status(200).json({
         success: true,
@@ -216,6 +254,7 @@ export const chatController = {
           content: assistantReply,
         },
         threadId: thread.threadId,
+        modelUsed: selectedModel,
       });
     } catch (err) {
       next(err);
@@ -241,6 +280,46 @@ export const chatController = {
         success: true,
         message: "All messages cleared",
         threadId,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // 🆕 Get available AI models
+  getAvailableModels: async (req, res, next) => {
+    try {
+      const models = aiService.getAvailableModels();
+      res.status(200).json({
+        success: true,
+        models,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // 🆕 Update user's default model preference
+  updateModelPreference: async (req, res, next) => {
+    try {
+      const { modelMode } = req.body;
+      const userId = req.user?.id || req.user?._id;
+      if (!userId) throw new ApiError(401, "Unauthorized");
+
+      if (!["fast", "creative", "detailed"].includes(modelMode)) {
+        throw new ApiError(400, "Invalid model mode");
+      }
+
+      const user = await User.findByIdAndUpdate(
+        userId,
+        { "preferences.aiModel": modelMode },
+        { new: true }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Model preference updated",
+        preference: user.preferences.aiModel,
       });
     } catch (err) {
       next(err);

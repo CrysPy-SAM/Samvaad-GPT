@@ -1,86 +1,113 @@
 import React from "react";
-import { Menu, X, Moon, Sun } from "lucide-react";
-import { APP_CONFIG } from "../../utils/constants";
-import { useAuth } from "../../hooks/useAuth";
-import { useTheme } from "../../hooks/useTheme";
+import ModelSelector from "../chat/ModelSelector";
+import { Sun, Moon, User, LogOut } from "lucide-react";
 
-export const Header = ({ isSidebarOpen, onToggleSidebar, onShowLogin }) => {
-  const { isGuest, user, logout } = useAuth();
-  const { darkMode, toggleTheme } = useTheme();
-
+export const Header = ({
+  isSidebarOpen,
+  onToggleSidebar,
+  onShowLogin,
+  selectedModel,
+  onModelChange,
+  darkMode,
+  toggleTheme,
+  user,
+  isGuest,
+  onLogout, // ✅ add logout handler
+}) => {
   return (
-    <div
-      className={`${
-        darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
-      } border-b px-4 py-3 flex items-center justify-between`}
+    <header
+      className={`flex items-center justify-between px-5 py-3 border-b transition-colors duration-300 shadow-sm ${
+        darkMode
+          ? "bg-gray-950 border-gray-800 text-gray-100"
+          : "bg-white border-gray-200 text-gray-800"
+      }`}
     >
-      <div className="flex items-center gap-3">
+      {/* Left: Logo + Model Selector */}
+      <div className="flex items-center gap-4">
+        {/* Sidebar Toggle */}
         <button
           onClick={onToggleSidebar}
           className={`p-2 rounded-lg ${
             darkMode
               ? "hover:bg-gray-800 text-gray-300"
               : "hover:bg-gray-100 text-gray-700"
-          } transition-colors`}
+          }`}
+          title="Toggle Sidebar"
         >
-          {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          ☰
         </button>
-        <div>
-          <h1
-            className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-          >
-            {APP_CONFIG.NAME}
-          </h1>
-          <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Built by {APP_CONFIG.CREATOR}
-          </p>
+
+        {/* App Name */}
+        <h1
+          className={`text-xl font-bold tracking-tight ${
+            darkMode ? "text-white" : "text-gray-900"
+          }`}
+        >
+          SamvaadGPT
+        </h1>
+
+        {/* Model Selector */}
+        <div className="ml-3">
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={onModelChange}
+            darkMode={darkMode}
+          />
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Right: User + Actions */}
+      <div className="flex items-center gap-4">
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          className={`p-2 rounded-lg ${
+          className={`p-2 rounded-full transition-all ${
             darkMode
-              ? "hover:bg-gray-800 text-gray-300"
-              : "hover:bg-gray-100 text-gray-700"
-          } transition-colors`}
-          title={darkMode ? "Light Mode" : "Dark Mode"}
+              ? "hover:bg-gray-800 text-yellow-400"
+              : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+          }`}
+          title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
-          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         {/* User Info */}
-        <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-          👋 {isGuest ? "Guest" : user?.name}
-        </span>
+        <div
+          className={`flex items-center gap-2 text-sm font-medium ${
+            darkMode ? "text-gray-300" : "text-gray-700"
+          }`}
+        >
+          <User size={16} />
+          {isGuest ? "Guest" : user?.name ? `Hi, ${user.name}` : "User"}
+        </div>
 
-        {/* Login/Logout Button */}
+        {/* Buttons */}
         {isGuest ? (
+          // ✅ Login button (for guest)
           <button
             onClick={onShowLogin}
-            className={`text-sm px-3 py-1 rounded ${
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm ${
               darkMode
-                ? "bg-blue-700 hover:bg-blue-600 text-white"
+                ? "bg-blue-600 hover:bg-blue-500 text-white"
                 : "bg-blue-500 hover:bg-blue-600 text-white"
-            } transition-colors`}
+            }`}
           >
             Login
           </button>
         ) : (
+          // ✅ Logout button (for logged-in users)
           <button
-            onClick={logout}
-            className={`text-sm px-3 py-1 rounded ${
+            onClick={onLogout}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               darkMode
-                ? "bg-red-700 hover:bg-red-600 text-white"
+                ? "bg-red-600 hover:bg-red-500 text-white"
                 : "bg-red-500 hover:bg-red-600 text-white"
-            } transition-colors`}
+            }`}
           >
-            Logout
+            <LogOut size={16} /> Logout
           </button>
         )}
       </div>
-    </div>
+    </header>
   );
 };

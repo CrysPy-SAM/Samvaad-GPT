@@ -45,10 +45,10 @@ export const useChat = () => {
     }
   }, []);
 
-  const createThread = useCallback(async (title) => {
+  const createThread = useCallback(async (title = "New Chat", modelMode = "fast") => {
     try {
       setError(null);
-      const data = await chatAPI.createThread(title);
+      const data = await chatAPI.createThread(title, modelMode);
       setCurrentThreadId(data.threadId);
       setMessages([]);
       await fetchThreads();
@@ -60,18 +60,20 @@ export const useChat = () => {
     }
   }, [fetchThreads]);
 
+  // ✅ Fixed sendMessage — correct parameter order + modelMode support
   const sendMessage = useCallback(
-    async (message) => {
+    async (message, modelMode = "fast") => {
       try {
         setError(null);
         setIsLoading(true);
 
         let threadId = currentThreadId;
         if (!isGuest && !threadId) {
-          threadId = await createThread();
+          threadId = await createThread("New Chat", modelMode);
         }
 
-        const data = await chatAPI.sendMessage(threadId, message, isGuest);
+        // Correct argument order: (message, modelMode, threadId, isGuest)
+        const data = await chatAPI.sendMessage(message, modelMode, threadId, isGuest);
 
         if (data.success) {
           setMessages((prev) => [...prev, data.message]);
@@ -111,11 +113,11 @@ export const useChat = () => {
   );
 
   const clearChat = useCallback(() => {
-  setThreads([]);
-  setMessages([]);
-  setCurrentThreadId(null);
-  setError(null);
-}, []);
+    setThreads([]);
+    setMessages([]);
+    setCurrentThreadId(null);
+    setError(null);
+  }, []);
 
   return {
     threads,

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Message } from "./Message";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuth } from "../../hooks/useAuth";
@@ -16,64 +16,139 @@ export const ChatArea = ({ messages, isLoading }) => {
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className={`text-6xl mb-4 ${darkMode ? "text-gray-700" : "text-gray-300"}`}>
-          💬
+      <div className="flex flex-col items-center justify-center h-full px-4">
+        <div className={`text-7xl mb-6 animate-bounce ${darkMode ? "text-gray-700" : "text-gray-300"}`}>
+          🤖
         </div>
         <h2
-          className={`text-2xl font-bold mb-2 ${
-            darkMode ? "text-gray-300" : "text-gray-700"
+          className={`text-3xl font-bold mb-3 ${
+            darkMode ? "text-gray-200" : "text-gray-800"
           }`}
         >
-          Start a Conversation
+          👋 Welcome to SamvaadGPT!
         </h2>
         <p
           className={`${
-            darkMode ? "text-gray-500" : "text-gray-500"
-          } text-center max-w-md px-4`}
+            darkMode ? "text-gray-400" : "text-gray-600"
+          } text-center max-w-md mb-6 text-lg`}
         >
-          Ask me anything! I can help with coding, writing, analysis, and more.
+          💬 Ask me anything! I can help with:
         </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full mb-8">
+          <div
+            className={`${
+              darkMode ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:bg-gray-50"
+            } border ${
+              darkMode ? "border-gray-700" : "border-gray-200"
+            } rounded-xl p-4 transition-all hover:shadow-lg cursor-pointer`}
+          >
+            <div className="text-2xl mb-2">💻</div>
+            <h3 className={`font-semibold mb-1 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+              Coding & Tech
+            </h3>
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+              Debug code, learn new languages, build projects
+            </p>
+          </div>
+          
+          <div
+            className={`${
+              darkMode ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:bg-gray-50"
+            } border ${
+              darkMode ? "border-gray-700" : "border-gray-200"
+            } rounded-xl p-4 transition-all hover:shadow-lg cursor-pointer`}
+          >
+            <div className="text-2xl mb-2">✍️</div>
+            <h3 className={`font-semibold mb-1 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+              Writing & Content
+            </h3>
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+              Essays, emails, creative writing, editing
+            </p>
+          </div>
+          
+          <div
+            className={`${
+              darkMode ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:bg-gray-50"
+            } border ${
+              darkMode ? "border-gray-700" : "border-gray-200"
+            } rounded-xl p-4 transition-all hover:shadow-lg cursor-pointer`}
+          >
+            <div className="text-2xl mb-2">📚</div>
+            <h3 className={`font-semibold mb-1 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+              Learning & Research
+            </h3>
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+              Explain topics, summarize content, study help
+            </p>
+          </div>
+          
+          <div
+            className={`${
+              darkMode ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:bg-gray-50"
+            } border ${
+              darkMode ? "border-gray-700" : "border-gray-200"
+            } rounded-xl p-4 transition-all hover:shadow-lg cursor-pointer`}
+          >
+            <div className="text-2xl mb-2">🎨</div>
+            <h3 className={`font-semibold mb-1 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+              Creative Ideas
+            </h3>
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+              Brainstorm, plan projects, generate ideas
+            </p>
+          </div>
+        </div>
+
         {isGuest && (
           <div
-            className={`mt-4 px-4 py-2 rounded-lg ${
-              darkMode ? "bg-blue-900/30 text-blue-300" : "bg-blue-100 text-blue-700"
+            className={`flex items-center gap-2 px-6 py-3 rounded-full ${
+              darkMode ? "bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-700/50" : "bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200"
             }`}
           >
-            <p className="text-sm">
-              🎯 Guest Mode: {APP_CONFIG.GUEST_CHAT_LIMIT} free messages • Login for
-              unlimited access
+            <Sparkles size={18} className={darkMode ? "text-blue-400" : "text-blue-600"} />
+            <p className={`text-sm font-medium ${darkMode ? "text-blue-300" : "text-blue-700"}`}>
+              🎯 Guest Mode: {APP_CONFIG.GUEST_CHAT_LIMIT} free messages • Login for unlimited access
             </p>
           </div>
         )}
+        
+        <p className={`mt-6 text-sm ${darkMode ? "text-gray-500" : "text-gray-500"}`}>
+          ⚡ Powered by Samvaad-GPT AI • Built with ❤️ by {APP_CONFIG.CREATOR}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 pb-4">
       {messages.map((msg, idx) => (
         <Message key={idx} message={msg} isUser={msg.role === "user"} />
       ))}
       
       {isLoading && (
-        <div className="flex gap-3 justify-start">
+        <div className="flex gap-3 justify-start animate-fadeIn">
           <div
             className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              darkMode ? "bg-blue-600" : "bg-blue-500"
-            } text-white font-bold text-sm`}
+              darkMode ? "bg-gradient-to-br from-blue-500 to-purple-600" : "bg-gradient-to-br from-blue-400 to-purple-500"
+            } text-white font-bold text-xl shadow-lg`}
           >
-            AI
+            🤖
           </div>
           <div
-            className={`px-4 py-3 rounded-2xl ${
+            className={`px-5 py-4 rounded-2xl ${
               darkMode
-                ? "bg-gray-800 text-gray-400"
+                ? "bg-gray-800/90 border border-gray-700/50 text-gray-400"
                 : "bg-white border border-gray-200 text-gray-600"
-            } flex items-center gap-2`}
+            } flex items-center gap-3 shadow-sm`}
           >
-            <Loader2 className="animate-spin" size={20} />
-            <span>Thinking...</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.15s]"></span>
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.3s]"></span>
+            </div>
+            <span className="text-sm font-medium">Thinking... 🤔</span>
           </div>
         </div>
       )}

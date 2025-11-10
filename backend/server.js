@@ -77,7 +77,7 @@ process.on("SIGINT", async () => {
 const startServer = async () => {
   try {
     await connectDB();
-    
+
     app.listen(ENV.PORT, () => {
       logger.success(`Server running on port ${ENV.PORT}`);
       logger.info(`Environment: ${ENV.NODE_ENV}`);
@@ -88,5 +88,10 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+import listEndpoints from "express-list-endpoints";
+console.log("🔍 Registered routes:");
+console.table(listEndpoints(app));
+
 
 startServer();

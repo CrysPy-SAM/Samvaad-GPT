@@ -57,24 +57,58 @@ export const fileService = {
       const messages = [
         {
           role: "user",
-          content: `Analyze this ${method} file named "${filename}". Provide:
-1. Brief summary (2-3 sentences)
-2. Key points or main topics
-3. Important details or insights
-4. Any issues, errors, or suggestions (if applicable)
+          content: `📄 Analyze this file: **${filename}** (extracted via ${method})
 
-File content:
-${content.slice(0, 8000)}`,
+Please provide a comprehensive analysis with the following structure:
+
+### 📋 File Overview
+- Quick summary of what this file contains
+
+### 🎯 Key Points
+- Main topics or functionalities (use bullet points with ✅)
+
+### 💡 Detailed Insights
+- Important details, patterns, or notable elements
+- Use emojis to highlight different types of content:
+  - 💻 for code-related insights
+  - 📊 for data/statistics
+  - ⚠️ for warnings or issues
+  - ✨ for highlights or best practices
+
+### 🔍 Analysis
+- Quality assessment
+- Potential improvements or suggestions
+- Any errors or issues found
+
+### 🚀 Recommendations
+- Actionable next steps (if applicable)
+
+**File Content:**
+\`\`\`
+${content.slice(0, 8000)}
+\`\`\`
+
+Format your response exactly like ChatGPT with rich emojis, proper headings, and engaging content!`,
         },
       ];
 
-      const systemPrompt =
-        "You are SamvaadGPT — an advanced AI assistant created by Satyam Mishra, specialized in file analysis and content understanding. Provide comprehensive, structured analysis with key insights, summaries, and actionable information.";
+      const systemPrompt = `You are SamvaadGPT — an advanced AI assistant created by Satyam Mishra, specialized in file analysis. 
+
+Provide comprehensive, ChatGPT-style analysis with:
+- 📝 Rich formatting with emojis throughout
+- 🎯 Clear section headings with ### 
+- ✅ Bullet points with relevant emojis
+- 💡 Actionable insights and recommendations
+- 🔧 Technical accuracy with friendly tone
+- ⚡ Highlight key points with **bold**
+- 📊 Use tables for comparisons when needed
+
+Make every response engaging, informative, and visually appealing!`;
 
       return await groqService.getAIResponse(messages, systemPrompt);
     } catch (err) {
       logger.error("AI analysis error:", err);
-      return "⚠️ File analysis service is temporarily unavailable.";
+      return "⚠️ File analysis service is temporarily unavailable. Please try again later.";
     }
   },
 

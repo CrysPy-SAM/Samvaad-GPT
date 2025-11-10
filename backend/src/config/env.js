@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-
 dotenv.config();
 
 export const ENV = {
@@ -16,8 +15,10 @@ export const ENV = {
     process.env.JWT_SECRET || "samvaad_secret_key_12345",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
 
-  // GROQ API key
+  // 🧠 AI API Keys
   GROQ_API_KEY: process.env.GROQ_API_KEY,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  CLAUDE_API_KEY: process.env.CLAUDE_API_KEY, // optional (leave empty if not using)
 
   // Twilio credentials
   TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,

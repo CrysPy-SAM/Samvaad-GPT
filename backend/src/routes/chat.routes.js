@@ -16,4 +16,8 @@ router.delete("/thread/:threadId/messages", authMiddleware, chatController.clear
 // ✅ Chat route allows both guest and authenticated users
 router.post("/chat", optionalAuth, validateChatMessage, chatController.sendMessage);
 
+// 🆕 Model management routes
+router.get("/models", optionalAuth, chatController.getAvailableModels);
+router.patch("/preferences/model", authMiddleware, chatController.updateModelPreference);
+
 export default router;
