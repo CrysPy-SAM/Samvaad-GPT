@@ -1,64 +1,88 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkEmoji from "remark-emoji";
-import "highlight.js/styles/github-dark.css";
-import { Volume2, VolumeX } from "lucide-react";
+import rehypeHighlight from "rehype-highlight";
+import { Volume2, VolumeX, Copy } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
 import { formatTime } from "../../utils/formatters";
+import "highlight.js/styles/github-dark.css";
 
 export const Message = ({ message = {}, isUser = false }) => {
   const { darkMode } = useTheme();
+  const [displayedText, setDisplayedText] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [typingDone, setTypingDone] = useState(false);
   const content = message?.content || "";
   const timestamp = message?.timestamp;
 
-  // Load voices for speech synthesis
+  const typingSpeed = 15; // ms per character (adjust to change typing speed)
+
+  // 🧠 Typing effect for AI
   useEffect(() => {
-    if (window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = () => {};
+    if (isUser || !content) {
+      setDisplayedText(content);
+      setTypingDone(true);
+      return;
     }
-  }, []);
-
-  const speak = (text) => {
-    try {
-      if (!("speechSynthesis" in window)) return;
-      if (!text.trim()) return;
-
-      if (isSpeaking) {
-        window.speechSynthesis.cancel();
-        setIsSpeaking(false);
-        return;
+    setDisplayedText("");
+    let index = 0;
+    const interval = setInterval(() => {
+      setDisplayedText((prev) => prev + content[index]);
+      index++;
+      if (index >= content.length) {
+        clearInterval(interval);
+        setTypingDone(true);
       }
+    }, typingSpeed);
+    return () => clearInterval(interval);
+  }, [content, isUser]);
 
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "en-US";
-      utter.rate = 1;
-      utter.pitch = 1;
-
-      const voices = window.speechSynthesis.getVoices();
-      utter.voice = voices.find((v) => v.lang.startsWith("en")) || voices[0];
-
-      utter.onstart = () => setIsSpeaking(true);
-      utter.onend = () => setIsSpeaking(false);
-      utter.onerror = () => setIsSpeaking(false);
-
+  // 🎤 Speech
+  const speak = (text) => {
+    if (!("speechSynthesis" in window)) return;
+    if (isSpeaking) {
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
-    } catch (err) {
-      console.error("Speech synthesis error:", err);
       setIsSpeaking(false);
+      return;
     }
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "en-US";
+    utter.rate = 1;
+    utter.pitch = 1;
+    utter.onstart = () => setIsSpeaking(true);
+    utter.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
   };
+
+  // 📋 Copy code
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  // ✨ Emoji & tone formatting
+  const enhanceMessage = (text) =>
+    text
+      .replace(/^### (.*$)/gim, "💡 **$1**")
+      .replace(/^> (.*$)/gim, "💬 *$1*")
+      .replace(/\*\*(Note|Tip|Hint|Important):\*\*/gim, "💡 **$1:**")
+      .replace(/\*\*(Warning|Error|Caution):\*\*/gim, "⚠️ **$1:**")
+      .replace(/\*\*(Step|Task|Action)\s(\d+):\*\*/gim, "✅ **$1 $2:**")
+      .replace(/\*\*(Success|Done):\*\*/gim, "🎉 **$1:**");
+
+  const enhanced = enhanceMessage(displayedText);
 
   return (
     <div
-  className={`flex gap-3 fade-in transition-all duration-300 ease-in-out transform ${
-    isUser ? "justify-end" : "justify-start"
-  }`}
->
-
-      {/* Avatar for AI */}
+      className={`flex gap-3 transition-all duration-300 ease-in-out transform ${
+        isUser ? "justify-end" : "justify-start"
+      }`}
+    >
       {!isUser && (
         <div
           className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -69,7 +93,6 @@ export const Message = ({ message = {}, isUser = false }) => {
         </div>
       )}
 
-      {/* Message bubble */}
       <div className="flex flex-col gap-1 max-w-[85%]">
         <div
           className={`relative px-4 py-3 rounded-2xl leading-relaxed ${
@@ -82,63 +105,83 @@ export const Message = ({ message = {}, isUser = false }) => {
               : "bg-white text-gray-900 border border-gray-200"
           }`}
         >
-          {/* User Message */}
+          {/* AI Typing animation */}
+          {!typingDone && !isUser && (
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
+              <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-150"></span>
+              <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-300"></span>
+            </div>
+          )}
+
           {isUser ? (
             <div className="whitespace-pre-wrap break-words">{content}</div>
           ) : (
-            // ✅ ChatGPT-style Markdown rendering
             <ReactMarkdown
-  remarkPlugins={[remarkGfm, remarkEmoji]}
-  components={{
-    a: ({ node, ...props }) => (
-      <a
-        {...props}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-500 hover:underline"
-      />
-    ),
-    h1: ({ node, ...props }) => (
-      <h1 {...props} className="text-xl font-bold border-b pb-1 mb-2" />
-    ),
-    h2: ({ node, ...props }) => (
-      <h2 {...props} className="text-lg font-semibold border-b pb-1 mb-2" />
-    ),
-    p: ({ node, ...props }) => (
-      <p
-        {...props}
-        className="leading-relaxed my-2 text-[15px] whitespace-pre-wrap break-words"
-      />
-    ),
-    ul: ({ node, ...props }) => <ul {...props} className="list-disc ml-5 space-y-1" />,
-    ol: ({ node, ...props }) => <ol {...props} className="list-decimal ml-5 space-y-1" />,
-    li: ({ node, ...props }) => <li {...props} className="ml-1" />,
-    code: ({ inline, children, ...props }) => (
-      <code
-        {...props}
-        className={`${
-          inline
-            ? "bg-gray-800 text-gray-100 px-1 rounded"
-            : "block bg-gray-900 text-gray-100 p-2 rounded-lg my-2 overflow-x-auto text-sm"
-        }`}
-      >
-        {children}
-      </code>
-    ),
-    strong: ({ node, ...props }) => (
-      <strong {...props} className="font-semibold text-blue-500" />
-    ),
-    em: ({ node, ...props }) => <em {...props} className="italic text-gray-400" />,
-  }}
->
-  {content}
-</ReactMarkdown>
-
-
+              remarkPlugins={[remarkParse, remarkGfm, remarkEmoji]}
+              rehypePlugins={[[rehypeHighlight, { detect: true }]]}
+              components={{
+                code: ({ inline, className, children, ...props }) => (
+                  <div className="relative group">
+                    <code
+                      {...props}
+                      className={`${
+                        inline
+                          ? "bg-gray-700 text-gray-100 px-1 rounded"
+                          : "block bg-[#0d1117] text-gray-100 p-3 rounded-lg my-2 overflow-x-auto text-sm font-mono"
+                      }`}
+                    >
+                      {children}
+                    </code>
+                    {!inline && (
+                      <button
+                        onClick={() => handleCopy(children)}
+                        className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition"
+                        title={copied ? "Copied!" : "Copy code"}
+                      >
+                        <Copy
+                          size={16}
+                          className={`${
+                            copied
+                              ? "text-green-400"
+                              : "text-gray-400 hover:text-gray-200"
+                          }`}
+                        />
+                      </button>
+                    )}
+                  </div>
+                ),
+                p: ({ node, ...props }) => (
+                  <p
+                    {...props}
+                    className="leading-relaxed my-2 text-[15px] whitespace-pre-wrap break-words"
+                  />
+                ),
+                strong: ({ node, ...props }) => (
+                  <strong {...props} className="font-semibold text-blue-500" />
+                ),
+                em: ({ node, ...props }) => (
+                  <em {...props} className="italic text-gray-400" />
+                ),
+                blockquote: ({ node, ...props }) => (
+                  <blockquote
+                    {...props}
+                    className="border-l-4 border-blue-500 pl-3 italic opacity-90"
+                  />
+                ),
+                ul: ({ node, ...props }) => (
+                  <ul {...props} className="list-disc ml-6 space-y-1" />
+                ),
+                ol: ({ node, ...props }) => (
+                  <ol {...props} className="list-decimal ml-6 space-y-1" />
+                ),
+              }}
+            >
+              {enhanced}
+            </ReactMarkdown>
           )}
 
-          {/* 🔊 Voice playback */}
-          {!isUser && content && (
+          {!isUser && typingDone && (
             <button
               onClick={() => speak(content)}
               className={`absolute right-2 bottom-2 p-1 rounded-full transition ${
@@ -153,7 +196,6 @@ export const Message = ({ message = {}, isUser = false }) => {
           )}
         </div>
 
-        {/* 🕒 Timestamp */}
         {timestamp && (
           <span
             className={`text-xs ${
@@ -164,9 +206,7 @@ export const Message = ({ message = {}, isUser = false }) => {
           </span>
         )}
       </div>
-      
 
-      {/* Avatar for User */}
       {isUser && (
         <div
           className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -175,10 +215,7 @@ export const Message = ({ message = {}, isUser = false }) => {
         >
           You
         </div>
-        
       )}
-      
     </div>
-    
   );
 };
