@@ -11,11 +11,17 @@
     "lint": "eslint . --ext js,jsx"
   },
   "dependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "axios": "^1.6.7",
+    "highlight.js": "^11.11.1",
     "lucide-react": "^0.263.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.9.5"
+    "react-markdown": "^8.0.7",
+    "react-router-dom": "^7.9.5",
+    "rehype-highlight": "^7.0.2",
+    "remark-emoji": "^5.0.2",
+    "remark-gfm": "^3.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.1",
