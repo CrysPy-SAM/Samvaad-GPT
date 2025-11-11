@@ -10,20 +10,18 @@ const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly intelligent, frie
 - Use **bold** for emphasis and *italics* for subtle highlights
 - Create bulleted lists with proper spacing for better readability
 - Use numbered lists for step-by-step instructions
-- Add code blocks with proper syntax highlighting when sharing code
-- Use > blockquotes for important notes or tips
-- Keep paragraphs short and digestible (2–3 sentences max)
+- Add code blocks with syntax highlighting when sharing code
+- Use > blockquotes for tips or notes
+- Keep paragraphs short (2–3 sentences max)
 
 **Tone:**
-- Be conversational yet professional
-- Show enthusiasm with appropriate emojis
-- Use "you" to make it personal
-- Be encouraging and supportive
+- Conversational yet professional
+- Encouraging and supportive
 - Explain complex topics in simple terms
+- Use friendly emojis appropriately
+`;
 
-Provide clear, accurate, and helpful responses with excellent formatting.`;
-
-// ⚡ Groq (Fast Mode)
+// ⚡ GROQ API (Fast Mode)
 const getGroqResponse = async (messages, config) => {
   try {
     if (!ENV.GROQ_API_KEY) throw new Error("Groq API key not configured");
@@ -35,7 +33,7 @@ const getGroqResponse = async (messages, config) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: config.model,
+        model: config.model || "llama-3.3-70b-versatile",
         messages,
         temperature: config.temperature,
         max_tokens: config.maxTokens,
@@ -56,12 +54,10 @@ const getGroqResponse = async (messages, config) => {
   }
 };
 
-// 🎨 Gemini API (Creative Mode)
+// 🎨 GEMINI API (Creative Mode)
 const getGeminiResponse = async (messages, config) => {
   try {
-    if (!ENV.GEMINI_API_KEY) {
-      throw new Error("Gemini API key not configured");
-    }
+    if (!ENV.GEMINI_API_KEY) throw new Error("Gemini API key not configured");
 
     const contents = messages
       .filter((msg) => msg.role !== "system")
@@ -70,30 +66,21 @@ const getGeminiResponse = async (messages, config) => {
         parts: [{ text: msg.content }],
       }));
 
-    // ✅ v1beta endpoint
     const response = await fetch(
-  `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${ENV.GEMINI_API_KEY}`,
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: messages
-        .filter((msg) => msg.role !== "system")
-        .map((msg) => ({
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.content }],
-        })),
-      generationConfig: {
-        temperature: config.temperature,
-        maxOutputTokens: config.maxTokens,
-        topP: config.topP,
-      },
-    }),
-  }
-);
-
+      `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${ENV.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: config.temperature,
+            maxOutputTokens: config.maxTokens,
+            topP: config.topP,
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -101,17 +88,14 @@ const getGeminiResponse = async (messages, config) => {
     }
 
     const data = await response.json();
-    return (
-      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
-    );
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "⚠️ Gemini returned no content.";
   } catch (err) {
     logger.error("Gemini API Error:", err.message);
     throw err;
   }
 };
 
-
-// 🎯 Main AI Service
+// 🎯 MAIN AI SERVICE
 export const aiService = {
   getAIResponse: async (messages, modelMode = "fast", systemPrompt = null) => {
     try {
