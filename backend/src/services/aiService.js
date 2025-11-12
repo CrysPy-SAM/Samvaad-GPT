@@ -21,6 +21,36 @@ const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly intelligent, frie
 - Use friendly emojis appropriately
 `;
 
+/** 🧠 Helper: Safely extract readable text from structured API responses */
+const extractMessageContent = (msg) => {
+  if (!msg) return "";
+  if (typeof msg === "string") return msg;
+
+  if (Array.isArray(msg)) {
+    return msg
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part.text) return part.text;
+        if (part.content) return extractMessageContent(part.content);
+        return "";
+      })
+      .join("");
+  }
+
+  if (typeof msg === "object") {
+    if (msg.text) return msg.text;
+    if (msg.content) return extractMessageContent(msg.content);
+    if (msg.parts) return extractMessageContent(msg.parts);
+    try {
+      return JSON.stringify(msg);
+    } catch {
+      return String(msg);
+    }
+  }
+
+  return String(msg);
+};
+
 // ⚡ GROQ API (Fast Mode)
 const getGroqResponse = async (messages, config) => {
   try {
@@ -41,18 +71,46 @@ const getGroqResponse = async (messages, config) => {
       }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+      const errMsg = data?.error?.message || `HTTP ${response.status}`;
+      throw new Error(errMsg);
     }
 
-    const data = await response.json();
-    return data?.choices?.[0]?.message?.content?.trim() || null;
+    // 🧠 Recursively extract all readable text
+    const flatten = (value) => {
+      if (!value) return "";
+      if (typeof value === "string") return value;
+      if (Array.isArray(value))
+        return value.map((v) => flatten(v)).join("");
+      if (typeof value === "object") {
+        if (value.text) return flatten(value.text);
+        if (value.content) return flatten(value.content);
+        if (value.parts) return flatten(value.parts);
+        // Some Groq payloads wrap code/text in {type,text}
+        const vals = Object.values(value).map((v) => flatten(v));
+        return vals.join("");
+      }
+      return String(value);
+    };
+
+    const raw = data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.message;
+    const text = flatten(raw).trim();
+
+    if (!text) {
+      logger.warn("⚠️ Groq returned empty or malformed content:", data);
+      return "⚠️ Groq returned no readable content. Please try again.";
+    }
+
+    logger.debug("Groq Response (first 300 chars):", text.slice(0, 300));
+    return text;
   } catch (err) {
     logger.error("Groq API Error:", err.message);
-    throw err;
+    return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
   }
 };
+
 
 // 🎨 GEMINI API (Creative Mode)
 const getGeminiResponse = async (messages, config) => {
@@ -82,16 +140,21 @@ const getGeminiResponse = async (messages, config) => {
       }
     );
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+      const errMsg = data?.error?.message || `HTTP ${response.status}`;
+      throw new Error(errMsg);
     }
 
-    const data = await response.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "⚠️ Gemini returned no content.";
+    const text =
+      data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("\n")?.trim() ||
+      "⚠️ Gemini returned no content.";
+
+    return text;
   } catch (err) {
     logger.error("Gemini API Error:", err.message);
-    throw err;
+    return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
   }
 };
 
