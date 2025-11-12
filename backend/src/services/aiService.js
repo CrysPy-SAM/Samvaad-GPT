@@ -21,34 +21,76 @@ const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly intelligent, frie
 - Use friendly emojis appropriately
 `;
 
-/** 🧠 Helper: Safely extract readable text from structured API responses */
-const extractMessageContent = (msg) => {
+/**
+ * 🧠 CRITICAL FIX: Flatten deeply nested objects from API responses
+ * Handles Groq/Gemini returning content in wrapped/fragmented structures
+ */
+const extractMessageContent = (msg, depth = 0, visited = new Set()) => {
+  if (depth > 15) return "";
   if (!msg) return "";
-  if (typeof msg === "string") return msg;
 
+  // Prevent circular references
+  if (typeof msg === "object") {
+    const objId = Object.prototype.toString.call(msg);
+    if (visited.has(objId)) return "";
+    visited.add(objId);
+  }
+
+  // ✅ Handle strings
+  if (typeof msg === "string") {
+    return msg;
+  }
+
+  // ✅ Handle arrays - join all parts
   if (Array.isArray(msg)) {
     return msg
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if (part.text) return part.text;
-        if (part.content) return extractMessageContent(part.content);
-        return "";
-      })
+      .map((item) => extractMessageContent(item, depth + 1, visited))
+      .filter((str) => str && str.trim().length > 0)
       .join("");
   }
 
-  if (typeof msg === "object") {
-    if (msg.text) return msg.text;
-    if (msg.content) return extractMessageContent(msg.content);
-    if (msg.parts) return extractMessageContent(msg.parts);
-    try {
-      return JSON.stringify(msg);
-    } catch {
-      return String(msg);
+  // ✅ Handle objects - try known text fields
+  if (typeof msg === "object" && msg !== null) {
+    // Priority extraction order
+    const priorityFields = [
+      "text",
+      "content",
+      "message",
+      "body",
+      "parts",
+      "data",
+      "result",
+      "output",
+      "response",
+    ];
+
+    for (const field of priorityFields) {
+      if (msg[field]) {
+        const extracted = extractMessageContent(msg[field], depth + 1, visited);
+        if (extracted && extracted.trim().length > 0) {
+          return extracted;
+        }
+      }
+    }
+
+    // ✅ If no known field found, iterate ALL values smartly
+    const allValues = Object.values(msg)
+      .filter(
+        (v) =>
+          v !== null &&
+          v !== undefined &&
+          v !== msg &&
+          typeof v !== "function"
+      )
+      .map((v) => extractMessageContent(v, depth + 1, visited))
+      .filter((str) => str && str.trim().length > 0);
+
+    if (allValues.length > 0) {
+      return allValues.join("");
     }
   }
 
-  return String(msg);
+  return "";
 };
 
 // ⚡ GROQ API (Fast Mode)
@@ -56,20 +98,23 @@ const getGroqResponse = async (messages, config) => {
   try {
     if (!ENV.GROQ_API_KEY) throw new Error("Groq API key not configured");
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ENV.GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: config.model || "llama-3.3-70b-versatile",
-        messages,
-        temperature: config.temperature,
-        max_tokens: config.maxTokens,
-        top_p: config.topP,
-      }),
-    });
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ENV.GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: config.model || "llama-3.3-70b-versatile",
+          messages,
+          temperature: config.temperature,
+          max_tokens: config.maxTokens,
+          top_p: config.topP,
+        }),
+      }
+    );
 
     const data = await response.json();
 
@@ -78,39 +123,40 @@ const getGroqResponse = async (messages, config) => {
       throw new Error(errMsg);
     }
 
-    // 🧠 Recursively extract all readable text
-    const flatten = (value) => {
-      if (!value) return "";
-      if (typeof value === "string") return value;
-      if (Array.isArray(value))
-        return value.map((v) => flatten(v)).join("");
-      if (typeof value === "object") {
-        if (value.text) return flatten(value.text);
-        if (value.content) return flatten(value.content);
-        if (value.parts) return flatten(value.parts);
-        // Some Groq payloads wrap code/text in {type,text}
-        const vals = Object.values(value).map((v) => flatten(v));
-        return vals.join("");
-      }
-      return String(value);
-    };
+    // ✅ Log raw structure for debugging
+    logger.debug("Raw Groq response:", JSON.stringify(data).slice(0, 200));
 
-    const raw = data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.message;
-    const text = flatten(raw).trim();
-
-    if (!text) {
-      logger.warn("⚠️ Groq returned empty or malformed content:", data);
-      return "⚠️ Groq returned no readable content. Please try again.";
+    // ✅ Extract from nested structure - handle Groq's response format
+    const choice = data?.choices?.[0];
+    if (!choice) {
+      logger.warn("⚠️ No choices in Groq response");
+      return "⚠️ Groq returned an empty response.";
     }
 
-    logger.debug("Groq Response (first 300 chars):", text.slice(0, 300));
+    const messageObj = choice?.message;
+    if (!messageObj) {
+      logger.warn("⚠️ No message in Groq choice");
+      return "⚠️ Groq returned no message.";
+    }
+
+    // ✅ Extract text with our powerful function
+    const text = extractMessageContent(messageObj).trim();
+
+    if (!text || text.length === 0) {
+      logger.warn("⚠️ Groq extraction failed:", JSON.stringify(messageObj));
+      return "⚠️ Unable to extract readable content from Groq response.";
+    }
+
+    logger.success(
+      "✅ Groq Response extracted:",
+      text.slice(0, 150) + "..."
+    );
     return text;
   } catch (err) {
-    logger.error("Groq API Error:", err.message);
+    logger.error("❌ Groq API Error:", err.message);
     return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
   }
 };
-
 
 // 🎨 GEMINI API (Creative Mode)
 const getGeminiResponse = async (messages, config) => {
@@ -147,23 +193,43 @@ const getGeminiResponse = async (messages, config) => {
       throw new Error(errMsg);
     }
 
-    const text =
-      data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("\n")?.trim() ||
-      "⚠️ Gemini returned no content.";
+    // ✅ Extract from Gemini's structure
+    const candidate = data?.candidates?.[0];
+    if (!candidate) {
+      logger.warn("⚠️ No candidates in Gemini response");
+      return "⚠️ Gemini returned no candidates.";
+    }
 
+    const content = candidate?.content;
+    const text = extractMessageContent(content).trim();
+
+    if (!text || text.length === 0) {
+      logger.warn("⚠️ Gemini extraction failed:", JSON.stringify(content));
+      return "⚠️ Unable to extract readable content from Gemini response.";
+    }
+
+    logger.success(
+      "✅ Gemini Response extracted:",
+      text.slice(0, 150) + "..."
+    );
     return text;
   } catch (err) {
-    logger.error("Gemini API Error:", err.message);
+    logger.error("❌ Gemini API Error:", err.message);
     return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
   }
 };
 
 // 🎯 MAIN AI SERVICE
 export const aiService = {
-  getAIResponse: async (messages, modelMode = "fast", systemPrompt = null) => {
+  getAIResponse: async (
+    messages,
+    modelMode = "fast",
+    systemPrompt = null
+  ) => {
     try {
       const modelConfig =
-        CONSTANTS.AI_MODELS[modelMode.toUpperCase()] || CONSTANTS.AI_MODELS.FAST;
+        CONSTANTS.AI_MODELS[modelMode.toUpperCase()] ||
+        CONSTANTS.AI_MODELS.FAST;
 
       const apiMessages = [
         { role: "system", content: systemPrompt || DEFAULT_SYSTEM_PROMPT },
@@ -186,9 +252,10 @@ export const aiService = {
 
       return response;
     } catch (err) {
-      logger.error("AI Service Error:", err.message);
+      logger.error("❌ AI Service Error:", err.message);
       return `⚠️ I'm having trouble with the ${
-        CONSTANTS.AI_MODELS[modelMode.toUpperCase()]?.name || "selected model"
+        CONSTANTS.AI_MODELS[modelMode.toUpperCase()]?.name ||
+        "selected model"
       }. Please try again or switch to another mode.`;
     }
   },
