@@ -142,15 +142,19 @@ Provide comprehensive, ChatGPT-style analysis with:
 
 Make every response engaging, informative, and visually appealing!`;
 
+      // ✅ Call groqService and get response directly
       const aiResponse = await groqService.getAIResponse(messages, systemPrompt);
 
-      if (!aiResponse || aiResponse.trim().length === 0) {
-        throw new ApiError(500, "AI returned an empty response");
+      // ✅ Ensure response is a string
+      if (!aiResponse || typeof aiResponse !== "string" || aiResponse.trim().length === 0) {
+        logger.warn("⚠️ AI returned invalid response:", aiResponse);
+        throw new ApiError(500, "AI returned an empty or invalid response");
       }
 
+      logger.success("✅ File analysis completed successfully");
       return aiResponse;
     } catch (err) {
-      logger.error("AI analysis error:", err.message);
+      logger.error("❌ AI analysis error:", err.message);
       return "⚠️ File analysis service is temporarily unavailable. Please try again later.";
     }
   },
