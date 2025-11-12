@@ -21,78 +21,6 @@ const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly intelligent, frie
 - Use friendly emojis appropriately
 `;
 
-/**
- * 🧠 CRITICAL FIX: Flatten deeply nested objects from API responses
- * Handles Groq/Gemini returning content in wrapped/fragmented structures
- */
-const extractMessageContent = (msg, depth = 0, visited = new Set()) => {
-  if (depth > 15) return "";
-  if (!msg) return "";
-
-  // Prevent circular references
-  if (typeof msg === "object") {
-    const objId = Object.prototype.toString.call(msg);
-    if (visited.has(objId)) return "";
-    visited.add(objId);
-  }
-
-  // ✅ Handle strings
-  if (typeof msg === "string") {
-    return msg;
-  }
-
-  // ✅ Handle arrays - join all parts
-  if (Array.isArray(msg)) {
-    return msg
-      .map((item) => extractMessageContent(item, depth + 1, visited))
-      .filter((str) => str && str.trim().length > 0)
-      .join("");
-  }
-
-  // ✅ Handle objects - try known text fields
-  if (typeof msg === "object" && msg !== null) {
-    // Priority extraction order
-    const priorityFields = [
-      "text",
-      "content",
-      "message",
-      "body",
-      "parts",
-      "data",
-      "result",
-      "output",
-      "response",
-    ];
-
-    for (const field of priorityFields) {
-      if (msg[field]) {
-        const extracted = extractMessageContent(msg[field], depth + 1, visited);
-        if (extracted && extracted.trim().length > 0) {
-          return extracted;
-        }
-      }
-    }
-
-    // ✅ If no known field found, iterate ALL values smartly
-    const allValues = Object.values(msg)
-      .filter(
-        (v) =>
-          v !== null &&
-          v !== undefined &&
-          v !== msg &&
-          typeof v !== "function"
-      )
-      .map((v) => extractMessageContent(v, depth + 1, visited))
-      .filter((str) => str && str.trim().length > 0);
-
-    if (allValues.length > 0) {
-      return allValues.join("");
-    }
-  }
-
-  return "";
-};
-
 // ⚡ GROQ API (Fast Mode)
 const getGroqResponse = async (messages, config) => {
   try {
@@ -123,35 +51,16 @@ const getGroqResponse = async (messages, config) => {
       throw new Error(errMsg);
     }
 
-    // ✅ Log raw structure for debugging
-    logger.debug("Raw Groq response:", JSON.stringify(data).slice(0, 200));
+    // ✅ Groq standard format: choices[0].message.content
+    const content = data?.choices?.[0]?.message?.content;
 
-    // ✅ Extract from nested structure - handle Groq's response format
-    const choice = data?.choices?.[0];
-    if (!choice) {
-      logger.warn("⚠️ No choices in Groq response");
-      return "⚠️ Groq returned an empty response.";
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      logger.warn("⚠️ Groq returned empty content:", data);
+      return "⚠️ Groq returned no readable content. Please try again.";
     }
 
-    const messageObj = choice?.message;
-    if (!messageObj) {
-      logger.warn("⚠️ No message in Groq choice");
-      return "⚠️ Groq returned no message.";
-    }
-
-    // ✅ Extract text with our powerful function
-    const text = extractMessageContent(messageObj).trim();
-
-    if (!text || text.length === 0) {
-      logger.warn("⚠️ Groq extraction failed:", JSON.stringify(messageObj));
-      return "⚠️ Unable to extract readable content from Groq response.";
-    }
-
-    logger.success(
-      "✅ Groq Response extracted:",
-      text.slice(0, 150) + "..."
-    );
-    return text;
+    logger.success("✅ Groq Response:", content.slice(0, 150));
+    return content.trim();
   } catch (err) {
     logger.error("❌ Groq API Error:", err.message);
     return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
@@ -193,26 +102,16 @@ const getGeminiResponse = async (messages, config) => {
       throw new Error(errMsg);
     }
 
-    // ✅ Extract from Gemini's structure
-    const candidate = data?.candidates?.[0];
-    if (!candidate) {
-      logger.warn("⚠️ No candidates in Gemini response");
-      return "⚠️ Gemini returned no candidates.";
+    // ✅ Gemini format: candidates[0].content.parts[0].text
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      logger.warn("⚠️ Gemini returned empty content:", data);
+      return "⚠️ Gemini returned no content.";
     }
 
-    const content = candidate?.content;
-    const text = extractMessageContent(content).trim();
-
-    if (!text || text.length === 0) {
-      logger.warn("⚠️ Gemini extraction failed:", JSON.stringify(content));
-      return "⚠️ Unable to extract readable content from Gemini response.";
-    }
-
-    logger.success(
-      "✅ Gemini Response extracted:",
-      text.slice(0, 150) + "..."
-    );
-    return text;
+    logger.success("✅ Gemini Response:", text.slice(0, 150));
+    return text.trim();
   } catch (err) {
     logger.error("❌ Gemini API Error:", err.message);
     return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
@@ -248,6 +147,12 @@ export const aiService = {
           break;
         default:
           throw new Error(`Unknown provider: ${modelConfig.provider}`);
+      }
+
+      // ✅ ENSURE response is always a string
+      if (typeof response !== "string") {
+        logger.error("❌ Response is not a string:", typeof response);
+        return "⚠️ Invalid response format received.";
       }
 
       return response;
