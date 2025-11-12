@@ -7,15 +7,25 @@ import { logger } from "../utils/logger.js";
 export const fileService = {
   extractContent: async (filePath, fileType, filename) => {
     try {
-      // PDF
+      // 📘 PDF Files
       if (fileType === "application/pdf") {
-        const pdf = (await import("pdf-parse")).default;
-        const dataBuffer = await fs.readFile(filePath);
-        const pdfData = await pdf(dataBuffer);
-        return { content: pdfData.text, method: "PDF Parser" };
+        try {
+          const pdf = (await import("pdf-parse")).default;
+          const dataBuffer = await fs.readFile(filePath);
+          const pdfData = await pdf(dataBuffer);
+          const text = pdfData.text?.trim() || "";
+          if (text.length === 0) {
+            logger.warn(`⚠️ PDF appears empty: ${filename}`);
+            throw new ApiError(400, "PDF contains no readable text");
+          }
+          return { content: text, method: "PDF Parser" };
+        } catch (err) {
+          logger.error("❌ PDF parsing error:", err.message);
+          throw new ApiError(400, "Unable to extract text from PDF");
+        }
       }
 
-      // Text-based files
+      // 📄 Text-based Files
       if (
         fileType.startsWith("text/") ||
         fileType.includes("javascript") ||
@@ -23,25 +33,51 @@ export const fileService = {
         fileType.includes("python") ||
         fileType.includes("markdown")
       ) {
-        const content = await fs.readFile(filePath, "utf-8");
-        return { content, method: "Text Reader" };
+        try {
+          const content = await fs.readFile(filePath, "utf-8");
+          if (!content || content.trim().length === 0) {
+            throw new ApiError(400, "Text file appears empty");
+          }
+          return { content, method: "Text Reader" };
+        } catch (err) {
+          logger.error("❌ Text extraction error:", err.message);
+          throw new ApiError(400, "Unable to read text file");
+        }
       }
 
-      // Images (OCR)
+      // 🖼️ Image Files (OCR)
       if (fileType.startsWith("image/")) {
-        logger.info("Performing OCR on image...");
-        const {
-          data: { text },
-        } = await Tesseract.recognize(filePath, "eng", {
-          logger: (info) => {
-            if (info.status === "recognizing text") {
-              logger.debug(`OCR Progress: ${Math.round(info.progress * 100)}%`);
-            }
-          },
-        });
-        return { content: text.trim(), method: "OCR (Tesseract)" };
+        try {
+          logger.info(`🧠 Performing OCR on image: ${filename}`);
+
+          const { data } = await Tesseract.recognize(filePath, "eng", {
+            logger: (info) => {
+              if (info.status === "recognizing text") {
+                logger.debug(
+                  `OCR Progress: ${Math.round(info.progress * 100)}%`
+                );
+              }
+            },
+          });
+
+          const text = data.text?.trim() || "";
+          if (text.length === 0) {
+            logger.warn("⚠️ OCR returned no readable text.");
+            return {
+              content: "⚠️ No readable text detected in the image.",
+              method: "OCR (Empty)",
+            };
+          }
+
+          logger.success(`✅ OCR extraction successful for ${filename}`);
+          return { content: text, method: "OCR (Tesseract)" };
+        } catch (err) {
+          logger.error("❌ OCR Error:", err.message);
+          throw new ApiError(400, "Failed to process image text. Try clearer image.");
+        }
       }
 
+      // ❌ Unsupported File Types
       throw new ApiError(
         400,
         "Unsupported file type. Please upload: PDF, TXT, JS, JSON, PY, MD, CSV, or image files"
@@ -52,6 +88,7 @@ export const fileService = {
     }
   },
 
+  // 🤖 AI-Based File Analysis
   analyzeWithAI: async (content, filename, method) => {
     try {
       const messages = [
@@ -96,7 +133,7 @@ Format your response exactly like ChatGPT with rich emojis, proper headings, and
 
 Provide comprehensive, ChatGPT-style analysis with:
 - 📝 Rich formatting with emojis throughout
-- 🎯 Clear section headings with ### 
+- 🎯 Clear section headings with ###
 - ✅ Bullet points with relevant emojis
 - 💡 Actionable insights and recommendations
 - 🔧 Technical accuracy with friendly tone
@@ -105,13 +142,20 @@ Provide comprehensive, ChatGPT-style analysis with:
 
 Make every response engaging, informative, and visually appealing!`;
 
-      return await groqService.getAIResponse(messages, systemPrompt);
+      const aiResponse = await groqService.getAIResponse(messages, systemPrompt);
+
+      if (!aiResponse || aiResponse.trim().length === 0) {
+        throw new ApiError(500, "AI returned an empty response");
+      }
+
+      return aiResponse;
     } catch (err) {
-      logger.error("AI analysis error:", err);
+      logger.error("AI analysis error:", err.message);
       return "⚠️ File analysis service is temporarily unavailable. Please try again later.";
     }
   },
 
+  // 📦 Metadata
   getMetadata: (file, contentLength) => {
     return {
       filename: file.originalname,
@@ -123,6 +167,7 @@ Make every response engaging, informative, and visually appealing!`;
     };
   },
 
+  // 🔢 File Size Formatter
   formatBytes: (bytes, decimals = 2) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -132,12 +177,13 @@ Make every response engaging, informative, and visually appealing!`;
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
   },
 
+  // 🧹 Cleanup temporary files
   cleanup: async (filePath) => {
     try {
       await fs.unlink(filePath);
-      logger.debug(`File cleaned up: ${filePath}`);
+      logger.debug(`🧹 File cleaned up: ${filePath}`);
     } catch (err) {
-      logger.warn(`Failed to delete file: ${filePath}`, err.message);
+      logger.warn(`⚠️ Failed to delete file: ${filePath}`, err.message);
     }
   },
 };

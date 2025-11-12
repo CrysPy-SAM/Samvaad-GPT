@@ -11,14 +11,12 @@ export const CONSTANTS = {
     CREATIVE: {
       name: "🎨 Creative (Gemini 2.0 Flash)",
       provider: "gemini",
-      model: "gemini-2.0-flash", // ✅ verified working model name
+      model: "gemini-2.0-flash",
       temperature: 0.9,
       maxTokens: 2048,
       topP: 0.9,
     },
   },
-
-  // ✅ Add this section ↓↓↓
   FILE_TYPES: {
     ALLOWED: [
       "image/jpeg",
@@ -29,6 +27,15 @@ export const CONSTANTS = {
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ],
-    MAX_SIZE_MB: 10, // optional safety config
+    MAX_SIZE_MB: 10,
+  },
+  // ✅ Add this for groqService.js
+  GROQ: {
+    MODEL: "llama-3.3-70b-versatile",
+    TEMPERATURE: 0.7,
+    MAX_TOKENS: 2048,
+    TOP_P: 0.9,
+    FREQUENCY_PENALTY: 0,
+    PRESENCE_PENALTY: 0,
   },
 };
