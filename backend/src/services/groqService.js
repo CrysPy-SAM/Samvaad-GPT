@@ -2,43 +2,10 @@ import { ENV } from "../config/env.js";
 import { CONSTANTS } from "../config/constants.js";
 import { logger } from "../utils/logger.js";
 
-const extractMessageContent = (msg, depth = 0) => {
-  if (depth > 10) return "";
-  if (!msg) return "";
-
-  if (typeof msg === "string") {
-    return msg;
-  }
-
-  if (Array.isArray(msg)) {
-    return msg
-      .map((item) => extractMessageContent(item, depth + 1))
-      .filter((text) => text && text.length > 0)
-      .join("");
-  }
-
-  if (typeof msg === "object" && msg !== null) {
-    if (msg.text) return extractMessageContent(msg.text, depth + 1);
-    if (msg.content) return extractMessageContent(msg.content, depth + 1);
-    if (msg.message) return extractMessageContent(msg.message, depth + 1);
-    if (msg.parts) return extractMessageContent(msg.parts, depth + 1);
-    if (msg.body) return extractMessageContent(msg.body, depth + 1);
-
-    const values = Object.values(msg)
-      .map((value) => extractMessageContent(value, depth + 1))
-      .filter((text) => text && text.length > 0);
-
-    if (values.length > 0) {
-      return values.join("");
-    }
-  }
-
-  return "";
-};
-
 export const groqService = {
   getAIResponse: async (messages, systemPrompt = null) => {
     if (!ENV.GROQ_API_KEY) {
+      logger.error("❌ Groq API key not configured");
       return "⚠️ Groq API key not configured.";
     }
 
@@ -48,14 +15,14 @@ export const groqService = {
       const maxTokens = CONSTANTS?.GROQ?.MAX_TOKENS ?? 2048;
       const topP = CONSTANTS?.GROQ?.TOP_P ?? 0.9;
 
-      const body = {
+      logger.info(`📤 Groq Request - Model: ${model}`);
+
+      const requestBody = {
         model,
         messages: [
           {
             role: "system",
-            content:
-              systemPrompt ||
-              "You are SamvaadGPT, a helpful assistant.",
+            content: systemPrompt || "You are SamvaadGPT, a helpful assistant.",
           },
           ...messages.slice(-10),
         ],
@@ -63,6 +30,8 @@ export const groqService = {
         max_tokens: maxTokens,
         top_p: topP,
       };
+
+      logger.debug("Request body:", JSON.stringify(requestBody, null, 2).slice(0, 200));
 
       const response = await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
@@ -72,50 +41,57 @@ export const groqService = {
             Authorization: `Bearer ${ENV.GROQ_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(requestBody),
         }
       );
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(
-          errData?.error?.message || `Groq API error: ${response.status}`
-        );
+        const errorMsg =
+          errData?.error?.message || `Groq API error: ${response.status}`;
+        logger.error("❌ Groq HTTP Error:", errorMsg);
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
 
-      // 🔴 DEBUG: Log entire response
-      console.log("========== GROQ FULL RESPONSE ==========");
-      console.log(JSON.stringify(data, null, 2));
-      console.log("========== END RESPONSE ==========");
+      // 🔴 MOST IMPORTANT: Log full response
+      logger.debug("📥 GROQ RAW RESPONSE:", JSON.stringify(data, null, 2));
 
-      // 🔴 DEBUG: Log choice structure
-      console.log("choices[0]:", JSON.stringify(data?.choices?.[0], null, 2));
-      console.log("message:", JSON.stringify(data?.choices?.[0]?.message, null, 2));
+      // ✅ Get content safely
+      const content = data?.choices?.[0]?.message?.content;
 
-      const message = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message;
+      logger.debug("Extracted content type:", typeof content);
+      logger.debug("Extracted content:", content);
 
-      // 🔴 DEBUG: Log what we extracted
-      console.log("Raw message before extraction:", message);
-      console.log("Type of message:", typeof message);
-      console.log("Is array?", Array.isArray(message));
-
-      const text = extractMessageContent(message)?.trim();
-
-      // 🔴 DEBUG: Log final text
-      console.log("Final extracted text:", text);
-      console.log("Text length:", text?.length);
-
-      if (!text) {
-        logger.warn("⚠️ Groq returned empty or malformed content:", data);
-        return "⚠️ Unable to parse AI response. Please try again.";
+      // ✅ Ensure it's a string
+      if (!content) {
+        logger.warn("⚠️ Content is null/undefined");
+        return "⚠️ Groq returned no content.";
       }
 
-      logger.debug("✅ Groq response preview:", text.slice(0, 200));
-      return text;
+      if (typeof content !== "string") {
+        logger.error("❌ Content is not a string, it's:", typeof content);
+        logger.error("Content value:", JSON.stringify(content, null, 2));
+        
+        // Try to convert to string as fallback
+        const stringified = String(content);
+        logger.warn("Attempting to stringify content:", stringified);
+        return stringified;
+      }
+
+      const trimmedContent = content.trim();
+
+      if (trimmedContent.length === 0) {
+        logger.warn("⚠️ Content is empty string");
+        return "⚠️ Groq returned empty response.";
+      }
+
+      logger.success("✅ Groq Success - Content length:", trimmedContent.length);
+      return trimmedContent;
     } catch (err) {
-      logger.error("❌ Groq API Error:", err.message);
+      logger.error("❌ Groq Service Exception:", err.message);
+      logger.error("Stack:", err.stack);
       return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
     }
   },
