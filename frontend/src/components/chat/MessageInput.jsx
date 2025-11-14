@@ -14,7 +14,7 @@ export const MessageInput = ({
   disabled,
   isLoading,
   isAnalyzing,
-  placeholder = "Message SamvaadGPT...",
+  placeholder = "Message Samvaad-GPT...",
 }) => {
   const { darkMode } = useTheme();
   const textareaRef = useRef(null);
