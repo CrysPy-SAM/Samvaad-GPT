@@ -25,7 +25,7 @@ export const ChatArea = ({ messages, isLoading }) => {
             darkMode ? "text-gray-200" : "text-gray-800"
           }`}
         >
-          👋 Welcome to SamvaadGPT!
+          👋 Welcome to Samvaad-GPT!
         </h2>
         <p
           className={`${
