@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  NAME: "SamvaadGPT",
+  NAME: "Samvaad-GPT",
   CREATOR: "Satyam Mishra",
   GUEST_CHAT_LIMIT: 5,
   API_URL: import.meta.env.VITE_API_URL || "http://localhost:8080/api",
