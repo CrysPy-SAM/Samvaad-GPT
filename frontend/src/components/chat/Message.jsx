@@ -119,64 +119,69 @@ export const Message = ({ message = {}, isUser = false }) => {
                 components={{
                   // Code blocks
                   code({ node, inline, className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || "");
-                    const codeString = String(children).replace(/\n$/, "");
+    const match = /language-(\w+)/.exec(className || "");
+    // ✅ FIX: Ensure children is always a string
+    let codeString = String(children);
+    if (codeString.endsWith('\n')) {
+      codeString = codeString.slice(0, -1);
+    }
 
-                    return !inline && match ? (
-                      <div className="relative group my-4">
-                        <div className="flex items-center justify-between bg-gray-900 px-4 py-2 rounded-t-lg border-b border-gray-700">
-                          <span className="text-xs text-gray-400 font-mono uppercase tracking-wide">
-                            {match[1]}
-                          </span>
-                          <button
-                            onClick={() => handleCopy(codeString)}
-                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors px-2 py-1 rounded hover:bg-gray-800"
-                          >
-                            {copied ? (
-                              <>
-                                <Check size={14} />
-                                <span>Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy size={14} />
-                                <span>Copy</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <SyntaxHighlighter
-                          style={oneDark}
-                          language={match[1]}
-                          PreTag="div"
-                          customStyle={{
-                            margin: 0,
-                            borderTopLeftRadius: 0,
-                            borderTopRightRadius: 0,
-                            borderBottomLeftRadius: "0.5rem",
-                            borderBottomRightRadius: "0.5rem",
-                            padding: "1rem",
-                            fontSize: "0.875rem",
-                            lineHeight: "1.5",
-                          }}
-                          {...props}
-                        >
-                          {codeString}
-                        </SyntaxHighlighter>
-                      </div>
-                    ) : (
-                      <code
-                        className={`${
-                          darkMode
-                            ? "bg-gray-700/50 text-blue-300"
-                            : "bg-gray-100 text-blue-600"
-                        } px-1.5 py-0.5 rounded text-sm font-mono`}
-                        {...props}
-                      >
-                        {children}
-                      </code>
-                    );
-                  },
+    return !inline && match ? (
+      <div className="relative group my-4">
+        <div className="flex items-center justify-between bg-gray-900 px-4 py-2 rounded-t-lg border-b border-gray-700">
+          <span className="text-xs text-gray-400 font-mono uppercase tracking-wide">
+            {match[1]}
+          </span>
+          <button
+            onClick={() => handleCopy(codeString)}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors px-2 py-1 rounded hover:bg-gray-800"
+          >
+            {copied ? (
+              <>
+                <Check size={14} />
+                <span>Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy size={14} />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+        <SyntaxHighlighter
+          style={oneDark}
+          language={match[1]}
+          PreTag="div"
+          customStyle={{
+            margin: 0,
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            borderBottomLeftRadius: "0.5rem",
+            borderBottomRightRadius: "0.5rem",
+            padding: "1rem",
+            fontSize: "0.875rem",
+            lineHeight: "1.5",
+          }}
+          {...props}
+        >
+          {codeString}
+        </SyntaxHighlighter>
+      </div>
+    ) : (
+      // ✅ FIX: Inline code should also convert to string
+      <code
+        className={`${
+          darkMode
+            ? "bg-gray-700/50 text-blue-300"
+            : "bg-gray-100 text-blue-600"
+        } px-1.5 py-0.5 rounded text-sm font-mono`}
+        {...props}
+      >
+        {typeof children === 'string' ? children : String(children)}
+      </code>
+    );
+  },
 
                   // Paragraphs
                   p({ children }) {
