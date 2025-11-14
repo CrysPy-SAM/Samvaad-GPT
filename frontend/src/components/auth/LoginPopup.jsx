@@ -257,7 +257,7 @@ export const LoginPopup = ({ onClose }) => {
             <p className="text-xs text-gray-400 text-center mt-3">
               {isRegister
                 ? "Already have an account?"
-                : "New to SamvaadGPT?"}{" "}
+                : "New to Samvaad-GPT?"}{" "}
               <button
                 type="button"
                 onClick={() => {
