@@ -105,7 +105,7 @@ export const LoginPopup = ({ onClose }) => {
           </h2>
           <p className="text-sm text-gray-400 mt-1">
             {isRegister
-              ? "Join SamvaadGPT to start exploring."
+              ? "Join Samvaad-GPT to start exploring."
               : "Login to continue your conversations."}
           </p>
         </div>
