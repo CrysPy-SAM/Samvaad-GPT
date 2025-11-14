@@ -51,16 +51,28 @@ const getGroqResponse = async (messages, config) => {
       throw new Error(errMsg);
     }
 
-    // ✅ Groq standard format: choices[0].message.content
-    const content = data?.choices?.[0]?.message?.content;
+    // ✅ Extract content safely
+    let content = data?.choices?.[0]?.message?.content;
 
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      logger.warn("⚠️ Groq returned empty content:", data);
+    // ✅ Handle null/undefined/non-string
+    if (!content || typeof content !== "string") {
+      if (content === null || content === undefined) {
+        logger.warn("⚠️ Groq returned null/undefined content");
+      } else {
+        logger.warn(`⚠️ Groq returned non-string content (type: ${typeof content}):`, content);
+        content = String(content);
+      }
+    }
+
+    content = (content || "").trim();
+
+    if (content.length === 0) {
+      logger.warn("⚠️ Groq returned empty content");
       return "⚠️ Groq returned no readable content. Please try again.";
     }
 
-    logger.success("✅ Groq Response:", content.slice(0, 150));
-    return content.trim();
+    logger.success("✅ Groq Response received, length:", content.length);
+    return content;
   } catch (err) {
     logger.error("❌ Groq API Error:", err.message);
     return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
@@ -102,16 +114,27 @@ const getGeminiResponse = async (messages, config) => {
       throw new Error(errMsg);
     }
 
-    // ✅ Gemini format: candidates[0].content.parts[0].text
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // ✅ Extract text safely
+    let text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!text || typeof text !== "string" || text.trim().length === 0) {
-      logger.warn("⚠️ Gemini returned empty content:", data);
+    if (!text || typeof text !== "string") {
+      if (text === null || text === undefined) {
+        logger.warn("⚠️ Gemini returned null/undefined content");
+      } else {
+        logger.warn(`⚠️ Gemini returned non-string content (type: ${typeof text}):`, text);
+        text = String(text);
+      }
+    }
+
+    text = (text || "").trim();
+
+    if (text.length === 0) {
+      logger.warn("⚠️ Gemini returned empty content");
       return "⚠️ Gemini returned no content.";
     }
 
-    logger.success("✅ Gemini Response:", text.slice(0, 150));
-    return text.trim();
+    logger.success("✅ Gemini Response received, length:", text.length);
+    return text;
   } catch (err) {
     logger.error("❌ Gemini API Error:", err.message);
     return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
@@ -149,10 +172,17 @@ export const aiService = {
           throw new Error(`Unknown provider: ${modelConfig.provider}`);
       }
 
-      // ✅ ENSURE response is always a string
+      // ✅ FINAL CHECK: Ensure response is always a string
       if (typeof response !== "string") {
-        logger.error("❌ Response is not a string:", typeof response);
+        logger.error("❌ Final response is not a string:", typeof response);
         return "⚠️ Invalid response format received.";
+      }
+
+      response = response.trim();
+
+      if (response.length === 0) {
+        logger.error("❌ Final response is empty");
+        return "⚠️ AI service returned an empty response.";
       }
 
       return response;
