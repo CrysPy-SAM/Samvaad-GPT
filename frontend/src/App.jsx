@@ -234,7 +234,7 @@ function App() {
               placeholder={
                 isGuest && guestChatCount >= APP_CONFIG.GUEST_CHAT_LIMIT
                   ? "Please login to continue..."
-                  : "Message SamvaadGPT..."
+                  : "Message Samvaad-GPT..."
               }
             />
             <p
