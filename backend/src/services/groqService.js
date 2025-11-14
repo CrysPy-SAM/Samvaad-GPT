@@ -55,40 +55,40 @@ export const groqService = {
 
       const data = await response.json();
 
-      // 🔴 MOST IMPORTANT: Log full response
       logger.debug("📥 GROQ RAW RESPONSE:", JSON.stringify(data, null, 2));
 
-      // ✅ Get content safely
-      const content = data?.choices?.[0]?.message?.content;
+      // ✅ CRITICAL: Extract content safely
+      let content = data?.choices?.[0]?.message?.content;
 
       logger.debug("Extracted content type:", typeof content);
-      logger.debug("Extracted content:", content);
+      logger.debug("Extracted content length:", content?.length || 0);
 
-      // ✅ Ensure it's a string
-      if (!content) {
-        logger.warn("⚠️ Content is null/undefined");
+      // ✅ Handle null/undefined
+      if (content === null || content === undefined) {
+        logger.warn("⚠️ Content is null/undefined, returning fallback");
         return "⚠️ Groq returned no content.";
       }
 
+      // ✅ ENSURE it's a string - convert if needed
       if (typeof content !== "string") {
-        logger.error("❌ Content is not a string, it's:", typeof content);
-        logger.error("Content value:", JSON.stringify(content, null, 2));
-        
-        // Try to convert to string as fallback
-        const stringified = String(content);
-        logger.warn("Attempting to stringify content:", stringified);
-        return stringified;
+        logger.warn(`⚠️ Content is not a string, it's: ${typeof content}`);
+        logger.warn("Content value:", JSON.stringify(content, null, 2));
+        content = String(content);
       }
 
-      const trimmedContent = content.trim();
+      // ✅ Trim whitespace
+      content = content.trim();
 
-      if (trimmedContent.length === 0) {
-        logger.warn("⚠️ Content is empty string");
+      // ✅ Check if empty
+      if (content.length === 0) {
+        logger.warn("⚠️ Content is empty string after trim");
         return "⚠️ Groq returned empty response.";
       }
 
-      logger.success("✅ Groq Success - Content length:", trimmedContent.length);
-      return trimmedContent;
+      logger.success("✅ Groq Success - Content length:", content.length);
+      logger.debug("✅ Response preview:", content.substring(0, 200));
+
+      return content;
     } catch (err) {
       logger.error("❌ Groq Service Exception:", err.message);
       logger.error("Stack:", err.stack);
