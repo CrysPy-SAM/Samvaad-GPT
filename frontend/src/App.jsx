@@ -243,7 +243,7 @@ function App() {
               }`}
             >
               {isGuest && `Guest: ${guestChatCount}/${APP_CONFIG.GUEST_CHAT_LIMIT} messages • `}
-              SamvaadGPT can make mistakes — verify important info.
+              Samvaad-GPT can make mistakes — verify important info.
             </p>
           </div>
         </div>
