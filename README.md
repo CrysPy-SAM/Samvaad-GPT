@@ -1,1 +1,1 @@
-samvaad-gpt
+samvaad-GPT
