@@ -148,7 +148,7 @@ export const ChatArea = ({ messages, isLoading }) => {
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.15s]"></span>
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.3s]"></span>
             </div>
-            <span className="text-sm font-medium">Thinking... 🤔</span>
+            <span className="text-sm font-medium">Thinking.... 🤔</span>
           </div>
         </div>
       )}
