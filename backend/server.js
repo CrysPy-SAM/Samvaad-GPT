@@ -37,6 +37,9 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api/", limiter);
+app.use("/auth/", limiter);
+app.use("/chat/", limiter);
+app.use("/file/", limiter);
 
 // Body Parser
 app.use(express.json({ limit: "10mb" }));
@@ -60,10 +63,15 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API Routes
+// API Routes (Canonical /api/ endpoints)
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/file", fileRoutes);
+
+// Resilience Fallbacks (Ensures requests without /api prefix also resolve)
+app.use("/auth", authRoutes);
+app.use("/chat", chatRoutes);
+app.use("/file", fileRoutes);
 
 // Error Handlers
 app.use(notFoundHandler);
