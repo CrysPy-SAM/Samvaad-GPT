@@ -87,8 +87,6 @@ process.on("unhandledRejection", (reason, promise) => {
 // Start Server
 const startServer = async () => {
   try {
-    await connectDB();
-
     app.listen(ENV.PORT, "0.0.0.0", () => {
       logger.success(`Server running on port ${ENV.PORT}`);
       logger.info(`Environment: ${ENV.NODE_ENV}`);
@@ -97,6 +95,9 @@ const startServer = async () => {
 
     console.log("🔍 Registered routes:");
     console.table(listEndpoints(app));
+
+    // Connect to database without blocking server listening
+    await connectDB();
   } catch (err) {
     logger.error("Failed to start server:", err);
     process.exit(1);

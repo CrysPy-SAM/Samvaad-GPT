@@ -37,8 +37,8 @@ export const connectDB = async (retries = 5) => {
       await new Promise((resolve) => setTimeout(resolve, 5000));
       return connectDB(retries - 1);
     } else {
-      console.error("💀 MongoDB connection failed permanently. Exiting...");
-      process.exit(1);
+      console.error("⚠️ MongoDB connection failed permanently. Will retry in background every 15 seconds...");
+      setTimeout(() => connectDB(3), 15000);
     }
   }
 };
