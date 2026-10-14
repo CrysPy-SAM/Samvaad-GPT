@@ -200,12 +200,26 @@ export const chatController = {
       }
 
       // 👤 Logged-in Chat Flow
-      if (!threadId) {
-        throw new ApiError(400, "Thread ID is required");
-      }
+      let thread;
+      if (threadId) {
+        thread = await Thread.findOne({ threadId, userId });
+        if (!thread) throw new ApiError(404, "Thread not found. Please create a thread first.");
+      } else {
+        // Auto-create thread for logged-in user on first message
+        const newThreadId = uuidv4();
+        const user = await User.findById(userId);
+        const preferredModel = modelMode || user?.preferences?.aiModel || "fast";
 
-      const thread = await Thread.findOne({ threadId, userId });
-      if (!thread) throw new ApiError(404, "Thread not found. Please create a thread first.");
+        thread = new Thread({
+          threadId: newThreadId,
+          title: message.trim().slice(0, 45) + (message.trim().length > 45 ? "..." : ""),
+          messages: [],
+          userId,
+          settings: {
+            model: preferredModel,
+          },
+        });
+      }
 
       // Save user message
       const userMessage = { role: "user", content: message.trim() };
@@ -237,15 +251,15 @@ export const chatController = {
       };
       thread.messages.push(assistantMessage);
 
-      // Auto title generation
-      if (thread.messages.length === 2) {
-        thread.title = message.slice(0, 50);
+      // Auto title generation if thread has default title
+      if (thread.title === "New Chat" && thread.messages.length >= 2) {
+        thread.title = message.trim().slice(0, 45) + (message.trim().length > 45 ? "..." : "");
       }
 
       thread.updatedAt = new Date();
       await thread.save();
 
-      logger.info(`Message sent in thread: ${threadId} using model: ${selectedModel}`);
+      logger.info(`Message sent in thread: ${thread.threadId} using model: ${selectedModel}`);
 
       res.status(200).json({
         success: true,
@@ -254,6 +268,7 @@ export const chatController = {
           content: assistantReply,
         },
         threadId: thread.threadId,
+        title: thread.title,
         modelUsed: selectedModel,
       });
     } catch (err) {

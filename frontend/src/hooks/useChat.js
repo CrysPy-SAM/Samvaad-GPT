@@ -10,13 +10,17 @@ export const useChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ Clear all chat data when user logs out or switches to guest mode
+  // 🔄 Handle guest vs logged-in state transitions cleanly
   useEffect(() => {
+    // Whenever auth state switches, reset the active conversation so no chat leaks
+    setMessages([]);
+    setCurrentThreadId(null);
+    setError(null);
+
     if (isGuest) {
       setThreads([]);
-      setMessages([]);
-      setCurrentThreadId(null);
-      setError(null);
+    } else {
+      fetchThreads();
     }
   }, [isGuest]);
 
@@ -36,12 +40,15 @@ export const useChat = () => {
   const loadThread = useCallback(async (threadId) => {
     try {
       setError(null);
+      setIsLoading(true);
       const data = await chatAPI.getThread(threadId);
       setCurrentThreadId(threadId);
       setMessages(data.messages || []);
     } catch (err) {
       setError(err.message);
       console.error("Error loading thread:", err);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -60,36 +67,56 @@ export const useChat = () => {
     }
   }, [fetchThreads]);
 
-  // ✅ Fixed sendMessage — correct parameter order + modelMode support
+  // 💬 Send message with optimistic update & auto-thread association
   const sendMessage = useCallback(
     async (message, modelMode = "fast") => {
+      if (!message || !message.trim()) return null;
+
       try {
         setError(null);
         setIsLoading(true);
 
-        let threadId = currentThreadId;
-        if (!isGuest && !threadId) {
-          threadId = await createThread("New Chat", modelMode);
-        }
+        const trimmedMsg = message.trim();
+        const userMsg = {
+          role: "user",
+          content: trimmedMsg,
+          timestamp: new Date().toISOString(),
+        };
 
-        // Correct argument order: (message, modelMode, threadId, isGuest)
-        const data = await chatAPI.sendMessage(message, modelMode, threadId, isGuest);
+        // Optimistically add user message to conversation
+        setMessages((prev) => [...prev, userMsg]);
 
-        if (data.success) {
+        // Send to backend (backend auto-creates thread for logged-in user if currentThreadId is null)
+        const data = await chatAPI.sendMessage(
+          trimmedMsg,
+          modelMode,
+          currentThreadId,
+          isGuest
+        );
+
+        if (data.success && data.message) {
+          // Append assistant message
           setMessages((prev) => [...prev, data.message]);
-          if (!isGuest) await fetchThreads();
+
+          // If logged-in user and backend created or returned a threadId
+          if (!isGuest && data.threadId) {
+            if (currentThreadId !== data.threadId) {
+              setCurrentThreadId(data.threadId);
+            }
+            await fetchThreads();
+          }
         }
 
         return data;
       } catch (err) {
-        setError(err.message);
+        setError(err.message || "Failed to send message");
         console.error("Error sending message:", err);
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [currentThreadId, isGuest, createThread, fetchThreads]
+    [currentThreadId, isGuest, fetchThreads]
   );
 
   const deleteThread = useCallback(
@@ -112,6 +139,12 @@ export const useChat = () => {
     [currentThreadId, fetchThreads]
   );
 
+  const resetChat = useCallback(() => {
+    setCurrentThreadId(null);
+    setMessages([]);
+    setError(null);
+  }, []);
+
   const clearChat = useCallback(() => {
     setThreads([]);
     setMessages([]);
@@ -132,6 +165,7 @@ export const useChat = () => {
     deleteThread,
     setMessages,
     setCurrentThreadId,
+    resetChat,
     clearChat,
   };
 };

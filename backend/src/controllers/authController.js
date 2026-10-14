@@ -10,20 +10,22 @@ export const authController = {
   register: async (req, res, next) => {
     try {
       const { name, email, password } = req.body;
+      const normalizedEmail = (email || "").trim().toLowerCase();
+      const trimmedName = (name || "").trim();
 
-      const existing = await User.findOne({ email });
+      const existing = await User.findOne({ email: normalizedEmail });
       if (existing) {
         throw new ApiError(400, "User already exists");
       }
 
-      const user = new User({ name, email, password });
+      const user = new User({ name: trimmedName, email: normalizedEmail, password });
       await user.save();
 
       const token = jwt.sign({ id: user._id }, ENV.JWT_SECRET, {
         expiresIn: ENV.JWT_EXPIRES_IN,
       });
 
-      logger.success(`User registered: ${email}`);
+      logger.success(`User registered: ${normalizedEmail}`);
 
       res.status(201).json({
         success: true,
@@ -40,8 +42,9 @@ export const authController = {
   login: async (req, res, next) => {
     try {
       const { email, password } = req.body;
+      const normalizedEmail = (email || "").trim().toLowerCase();
 
-      const user = await User.findOne({ email });
+      const user = await User.findOne({ email: normalizedEmail });
       if (!user) {
         throw new ApiError(400, "User not found");
       }
@@ -55,7 +58,7 @@ export const authController = {
         expiresIn: ENV.JWT_EXPIRES_IN,
       });
 
-      logger.success(`User logged in: ${email}`);
+      logger.success(`User logged in: ${normalizedEmail}`);
 
       res.json({
         success: true,
@@ -140,7 +143,7 @@ verifyOTP: async (req, res, next) => {
       success: true,
       message: "OTP verified successfully",
       token,
-      user: { id: user._id, name: user.name, phone },
+      user: { id: user._id, name: user.name, phone: user.phone || phone, email: user.email },
     });
   } catch (err) {
     next(err);

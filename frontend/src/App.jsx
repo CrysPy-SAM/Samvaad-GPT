@@ -3,7 +3,6 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { ChatArea } from "./components/chat/ChatArea";
 import { MessageInput } from "./components/chat/MessageInput";
-import ModelSelector from "./components/chat/ModelSelector";
 import { LoginPopup } from "./components/auth/LoginPopup";
 import { useAuth } from "./hooks/useAuth";
 import { useChat } from "./hooks/useChat";
@@ -26,11 +25,11 @@ function App() {
     isLoading,
     fetchThreads,
     loadThread,
-    createThread,
     sendMessage,
     deleteThread,
     setMessages,
-    setCurrentThreadId,
+    resetChat,
+    clearChat,
   } = useChat();
 
   // ✅ UI States
@@ -45,7 +44,7 @@ function App() {
     "fast"
   );
 
-  // ✅ Guest User Storage
+  // ✅ Guest User Storage (Strictly isolated to guest mode)
   const [guestMessages, setGuestMessages, clearGuestMessages] = useLocalStorage(
     STORAGE_KEYS.GUEST_MESSAGES,
     []
@@ -55,18 +54,33 @@ function App() {
     0
   );
 
-  // 🧩 Load data based on user type
+  // 🛡️ Strict Isolation: Guest chats NEVER leak into logged-in user account
   useEffect(() => {
     if (isGuest) {
-      setMessages(guestMessages);
+      // In guest mode, restore temporary guest messages if any
+      if (guestMessages && guestMessages.length > 0) {
+        setMessages(guestMessages);
+      } else {
+        setMessages([]);
+      }
     } else {
+      // User is LOGGED IN!
+      // Immediately clear all guest session messages and count
+      clearGuestMessages();
+      clearGuestCount();
+      resetChat();
       fetchThreads();
     }
   }, [isGuest]);
 
+  // Keep guest storage in sync ONLY while in guest mode
   useEffect(() => {
     if (isGuest) {
-      setGuestMessages(messages);
+      if (messages && messages.length > 0) {
+        setGuestMessages(messages);
+      } else {
+        clearGuestMessages();
+      }
     }
   }, [messages, isGuest]);
 
@@ -93,32 +107,27 @@ function App() {
 
   // 💬 Send Message
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    const text = inputMessage.trim();
+    if (!text || isLoading) return;
 
     if (isGuest && guestChatCount >= APP_CONFIG.GUEST_CHAT_LIMIT) {
       setShowLoginPopup(true);
       return;
     }
 
-    const userMessage = {
-      role: "user",
-      content: inputMessage.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
 
     try {
-      const data = await sendMessage(inputMessage.trim(), selectedModel);
-      if (isGuest) {
-        setGuestChatCount(guestChatCount + 1);
-        if (guestChatCount + 1 >= APP_CONFIG.GUEST_CHAT_LIMIT) {
+      const data = await sendMessage(text, selectedModel);
+      if (isGuest && data?.success) {
+        const nextCount = (guestChatCount || 0) + 1;
+        setGuestChatCount(nextCount);
+        if (nextCount >= APP_CONFIG.GUEST_CHAT_LIMIT) {
           setTimeout(() => setShowLoginPopup(true), 1000);
         }
       }
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error sending message:", err);
     }
   };
 
@@ -137,7 +146,7 @@ function App() {
       const fileMsg = {
         role: "assistant",
         content: `📄 **File Analysis: ${file.name}**\n\n${data.analysis}`,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, fileMsg]);
     } catch (err) {
@@ -145,7 +154,7 @@ function App() {
       const errorMsg = {
         role: "assistant",
         content: `⚠️ Failed to analyze file: ${err.message}`,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -153,12 +162,16 @@ function App() {
     }
   };
 
-  // 🆕 Create new chat
-  const handleNewChat = async () => {
+  // 🆕 Create / Reset to new chat (instant, no clutter in DB)
+  const handleNewChat = () => {
     if (isGuest) {
-      setShowLoginPopup(true);
+      if (guestMessages && guestMessages.length > 0) {
+        handleClearGuestChat();
+      } else if (guestChatCount >= APP_CONFIG.GUEST_CHAT_LIMIT) {
+        setShowLoginPopup(true);
+      }
     } else {
-      await createThread("New Chat", selectedModel);
+      resetChat();
     }
   };
 
@@ -167,6 +180,13 @@ function App() {
     setMessages([]);
     clearGuestMessages();
     clearGuestCount();
+  };
+
+  // 🚪 Clean Logout
+  const handleLogout = () => {
+    handleClearGuestChat();
+    clearChat();
+    logout();
   };
 
   return (
@@ -196,20 +216,18 @@ function App() {
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
-       <Header
-  isSidebarOpen={isSidebarOpen}
-  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-  onShowLogin={() => setShowLoginPopup(true)}
-  selectedModel={selectedModel}
-  onModelChange={handleModelChange}
-  darkMode={darkMode}
-  toggleTheme={toggleTheme}
-  user={user}
-  isGuest={isGuest}
-  onLogout={() => {
-    logout();
-  }}
-/>
+        <Header
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          onShowLogin={() => setShowLoginPopup(true)}
+          selectedModel={selectedModel}
+          onModelChange={handleModelChange}
+          darkMode={darkMode}
+          toggleTheme={toggleTheme}
+          user={user}
+          isGuest={isGuest}
+          onLogout={handleLogout}
+        />
 
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <ChatArea

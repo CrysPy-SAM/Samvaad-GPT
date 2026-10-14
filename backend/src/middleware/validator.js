@@ -1,7 +1,7 @@
 import { ApiError } from "../utils/response.js";
 
 export const validateChatMessage = (req, res, next) => {
-  const { message } = req.body;
+  const { message, modelMode } = req.body;
   
   if (!message || typeof message !== "string") {
     return next(new ApiError(400, "Message is required and must be a string"));
@@ -13,6 +13,10 @@ export const validateChatMessage = (req, res, next) => {
   
   if (message.length > 4000) {
     return next(new ApiError(400, "Message is too long (max 4000 characters)"));
+  }
+  
+  if (modelMode && !["fast", "pro", "creative", "detailed"].includes(modelMode)) {
+    return next(new ApiError(400, "Invalid model mode specified"));
   }
   
   next();
