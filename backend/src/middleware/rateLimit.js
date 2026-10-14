@@ -19,7 +19,7 @@ export const apiLimiter = createRateLimiter(
 
 export const authLimiter = createRateLimiter(
   15 * 60 * 1000, // 15 minutes
-  5, // 5 attempts
+  ENV.NODE_ENV === "development" ? 100 : 10,
   "Too many authentication attempts, please try again later."
 );
 

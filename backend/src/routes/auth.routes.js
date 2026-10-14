@@ -1,8 +1,11 @@
 import express from "express";
 import { authController } from "../controllers/authController.js";
 import { validateRegistration } from "../middleware/validator.js";
+import { authLimiter } from "../middleware/rateLimit.js";
 
 const router = express.Router();
+
+router.use(authLimiter);
 
 // Email/Password Auth
 router.post("/register", validateRegistration, authController.register);

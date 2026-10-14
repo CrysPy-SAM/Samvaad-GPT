@@ -7,6 +7,8 @@ import { ENV } from "./src/config/env.js";
 import { logger } from "./src/utils/logger.js";
 import { errorHandler, notFoundHandler } from "./src/middleware/errorHandler.js";
 
+import listEndpoints from "express-list-endpoints";
+
 // Import routes
 import authRoutes from "./src/routes/auth.routes.js";
 import chatRoutes from "./src/routes/chat.routes.js";
@@ -73,25 +75,32 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
+// Uncaught error handlers
+process.on("uncaughtException", (err) => {
+  logger.error("Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Rejection:", reason);
+});
+
 // Start Server
 const startServer = async () => {
   try {
     await connectDB();
 
-    app.listen(ENV.PORT, () => {
+    app.listen(ENV.PORT, "0.0.0.0", () => {
       logger.success(`Server running on port ${ENV.PORT}`);
       logger.info(`Environment: ${ENV.NODE_ENV}`);
       logger.info(`Health check: http://localhost:${ENV.PORT}/health`);
     });
+
+    console.log("🔍 Registered routes:");
+    console.table(listEndpoints(app));
   } catch (err) {
     logger.error("Failed to start server:", err);
     process.exit(1);
   }
 };
-
-import listEndpoints from "express-list-endpoints";
-console.log("🔍 Registered routes:");
-console.table(listEndpoints(app));
-
 
 startServer();
