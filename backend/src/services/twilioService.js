@@ -30,7 +30,13 @@ export const twilioService = {
       return verification;
     } catch (err) {
       logger.error("OTP Send Error:", err.message);
-      throw new ApiError(500, "Failed to send OTP");
+      if (err.message && err.message.toLowerCase().includes("unverified")) {
+        throw new ApiError(
+          400,
+          "Twilio Trial: Phone number is not verified in Twilio console (twilio.com/user/account/phone-numbers/verified). Or please login via Email."
+        );
+      }
+      throw new ApiError(500, err.message || "Failed to send OTP");
     }
   },
 

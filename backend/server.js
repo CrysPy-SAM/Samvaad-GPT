@@ -17,11 +17,18 @@ import fileRoutes from "./src/routes/file.routes.js";
 const app = express();
 
 // Security Middleware
-app.use(helmet());
-app.use(cors({
-  origin: ENV.FRONTEND_URL,
-  credentials: true,
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
+app.use(
+  cors({
+    origin: true, // Allow request origin dynamically for localhost, Vercel, Render, etc.
+    credentials: true,
+  })
+);
 
 // Rate Limiting
 const limiter = rateLimit({
