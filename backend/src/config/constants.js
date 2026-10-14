@@ -9,9 +9,9 @@ export const CONSTANTS = {
       topP: 0.9,
     },
     CREATIVE: {
-      name: "🎨 Creative (Gemini 2.0 Flash)",
+      name: "🎨 Creative (Gemini Flash)",
       provider: "gemini",
-      model: "gemini-2.0-flash",
+      model: "gemini-flash-latest",
       temperature: 0.9,
       maxTokens: 2048,
       topP: 0.9,
