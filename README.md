@@ -1,2 +1,1 @@
-Sammvaaad-GPT.
-(Groq-Gemini)
+https://samvaad-gpt-sb6r.vercel.app/
