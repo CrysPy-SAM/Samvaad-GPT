@@ -43,8 +43,8 @@ body {
   background: #4b5563;
 }
 
-/* Smooth transitions */
-* {
+/* Smooth transitions for interactive controls */
+button, input, select, textarea, a {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;

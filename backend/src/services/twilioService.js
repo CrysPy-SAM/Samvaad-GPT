@@ -9,6 +9,11 @@ if (ENV.TWILIO_ACCOUNT_SID && ENV.TWILIO_AUTH_TOKEN) {
   twilioClient = twilio(ENV.TWILIO_ACCOUNT_SID, ENV.TWILIO_AUTH_TOKEN);
 }
 
+const formatPhone = (phone) => {
+  const cleaned = String(phone).trim().replace(/[^\d+]/g, "");
+  return cleaned.startsWith("+") ? cleaned : `+91${cleaned}`;
+};
+
 export const twilioService = {
   sendOTP: async (phone) => {
     if (!twilioClient) {
@@ -16,11 +21,12 @@ export const twilioService = {
     }
 
     try {
+      const recipient = formatPhone(phone);
       const verification = await twilioClient.verify.v2
         .services(ENV.TWILIO_VERIFY_SID)
-        .verifications.create({ to: `+91${phone}`, channel: "sms" });
+        .verifications.create({ to: recipient, channel: "sms" });
 
-      logger.info(`OTP sent successfully to ${phone}`);
+      logger.info(`OTP sent successfully to ${recipient}`);
       return verification;
     } catch (err) {
       logger.error("OTP Send Error:", err.message);
@@ -34,9 +40,10 @@ export const twilioService = {
     }
 
     try {
+      const recipient = formatPhone(phone);
       const verification = await twilioClient.verify.v2
         .services(ENV.TWILIO_VERIFY_SID)
-        .verificationChecks.create({ to: `+91${phone}`, code: otp });
+        .verificationChecks.create({ to: recipient, code: otp });
 
       return verification.status === "approved";
     } catch (err) {

@@ -147,8 +147,8 @@ ThreadSchema.methods.clearMessages = function() {
 };
 
 // 🔧 Static method to find recent threads
-ThreadSchema.statics.findRecent = function(limit = 20, includeArchived = false) {
-    const query = includeArchived ? {} : { archived: false };
+ThreadSchema.statics.findRecent = function(userId, limit = 20, includeArchived = false) {
+    const query = includeArchived ? { userId } : { userId, archived: false };
     return this.find(query)
         .sort({ pinned: -1, updatedAt: -1 })
         .limit(limit)
@@ -156,8 +156,9 @@ ThreadSchema.statics.findRecent = function(limit = 20, includeArchived = false) 
 };
 
 // 🔧 Static method to search threads
-ThreadSchema.statics.searchThreads = function(searchQuery, limit = 20) {
+ThreadSchema.statics.searchThreads = function(userId, searchQuery, limit = 20) {
     return this.find({
+        userId,
         $or: [
             { title: { $regex: searchQuery, $options: "i" } },
             { "messages.content": { $regex: searchQuery, $options: "i" } },

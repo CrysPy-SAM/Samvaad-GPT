@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   GUEST_MESSAGES: "guestMessages",
   GUEST_COUNT: "guestChatCount",
   THEME: "theme",
+  MODEL_MODE: "modelMode",
 };
 
 export const MESSAGE_ROLES = {

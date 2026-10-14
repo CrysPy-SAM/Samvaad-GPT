@@ -13,6 +13,14 @@ export const ThemeProvider = ({ children }) => {
     }
   }, []);
 
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
   const toggleTheme = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);

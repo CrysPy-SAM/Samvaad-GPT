@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { connectDB } from "./src/config/database.js";
+import { connectDB, disconnectDB } from "./src/config/database.js";
 import { ENV } from "./src/config/env.js";
 import { logger } from "./src/utils/logger.js";
 import { errorHandler, notFoundHandler } from "./src/middleware/errorHandler.js";

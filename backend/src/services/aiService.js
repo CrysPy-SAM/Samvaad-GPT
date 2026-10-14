@@ -84,6 +84,7 @@ const getGeminiResponse = async (messages, config) => {
   try {
     if (!ENV.GEMINI_API_KEY) throw new Error("Gemini API key not configured");
 
+    const systemMsg = messages.find((msg) => msg.role === "system");
     const contents = messages
       .filter((msg) => msg.role !== "system")
       .map((msg) => ({
@@ -91,19 +92,27 @@ const getGeminiResponse = async (messages, config) => {
         parts: [{ text: msg.content }],
       }));
 
+    const requestBody = {
+      contents,
+      generationConfig: {
+        temperature: config.temperature,
+        maxOutputTokens: config.maxTokens,
+        topP: config.topP,
+      },
+    };
+
+    if (systemMsg?.content) {
+      requestBody.system_instruction = {
+        parts: [{ text: systemMsg.content }],
+      };
+    }
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${ENV.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature: config.temperature,
-            maxOutputTokens: config.maxTokens,
-            topP: config.topP,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 

@@ -124,7 +124,12 @@ export const ChatArea = ({ messages, isLoading }) => {
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-4">
       {messages.map((msg, idx) => (
-        <Message key={idx} message={msg} isUser={msg.role === "user"} />
+        <Message
+          key={idx}
+          message={msg}
+          isUser={msg.role === "user"}
+          isLatest={idx === messages.length - 1}
+        />
       ))}
       
       {isLoading && (

@@ -15,7 +15,7 @@ import { APP_CONFIG, STORAGE_KEYS } from "./utils/constants";
 
 function App() {
   // ✅ Auth + Theme Hooks
-  const { isGuest, user } = useAuth();
+  const { isGuest, user, logout } = useAuth();
   const { darkMode, toggleTheme } = useTheme();
 
   // ✅ Chat State Management
@@ -207,8 +207,7 @@ function App() {
   user={user}
   isGuest={isGuest}
   onLogout={() => {
-    localStorage.clear(); // clear tokens
-    window.location.reload(); // refresh app
+    logout();
   }}
 />
 

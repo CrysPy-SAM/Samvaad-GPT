@@ -12,7 +12,7 @@ import { formatTime } from "../../utils/formatters";
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/atom-one-dark.css";
 
-export const Message = ({ message = {}, isUser = false }) => {
+export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
   const { darkMode } = useTheme();
   const [displayedText, setDisplayedText] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -23,9 +23,9 @@ export const Message = ({ message = {}, isUser = false }) => {
 
   const typingSpeed = 10; // Faster typing for better UX
 
-  // Typing effect for AI
+  // Typing effect for AI (only for the latest incoming assistant message)
   useEffect(() => {
-    if (isUser || !content) {
+    if (isUser || !content || !isLatest) {
       setDisplayedText(content);
       setTypingDone(true);
       return;
@@ -42,7 +42,7 @@ export const Message = ({ message = {}, isUser = false }) => {
       }
     }, typingSpeed);
     return () => clearInterval(interval);
-  }, [content, isUser]);
+  }, [content, isUser, isLatest]);
 
   // Text-to-speech
   const speak = (text) => {

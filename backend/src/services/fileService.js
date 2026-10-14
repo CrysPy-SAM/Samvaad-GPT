@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import Tesseract from "tesseract.js";
-import { groqService } from "./groqService.js";
+import { aiService } from "./aiService.js";
 import { ApiError } from "../utils/response.js";
 import { logger } from "../utils/logger.js";
 
@@ -142,8 +142,8 @@ Provide comprehensive, ChatGPT-style analysis with:
 
 Make every response engaging, informative, and visually appealing!`;
 
-      // ✅ Call groqService and get response directly
-      const aiResponse = await groqService.getAIResponse(messages, systemPrompt);
+      // ✅ Call aiService and get response directly
+      const aiResponse = await aiService.getAIResponse(messages, "fast", systemPrompt);
 
       // ✅ Ensure response is a string
       if (!aiResponse || typeof aiResponse !== "string" || aiResponse.trim().length === 0) {

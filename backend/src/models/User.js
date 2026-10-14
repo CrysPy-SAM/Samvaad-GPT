@@ -31,6 +31,13 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  preferences: {
+    aiModel: {
+      type: String,
+      default: "fast",
+      enum: ["fast", "creative", "detailed"]
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now,
