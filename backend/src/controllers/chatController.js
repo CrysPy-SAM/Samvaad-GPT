@@ -306,7 +306,7 @@ export const chatController = {
       const userId = req.user?.id || req.user?._id;
       if (!userId) throw new ApiError(401, "Unauthorized");
 
-      if (!["fast", "creative", "detailed"].includes(modelMode)) {
+      if (!["fast", "pro", "creative", "detailed"].includes(modelMode)) {
         throw new ApiError(400, "Invalid model mode");
       }
 

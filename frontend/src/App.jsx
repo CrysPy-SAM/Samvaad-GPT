@@ -212,7 +212,11 @@ function App() {
 />
 
         <div className="flex-1 overflow-y-auto px-4 py-6">
-          <ChatArea messages={messages} isLoading={isLoading} />
+          <ChatArea
+            messages={messages}
+            isLoading={isLoading}
+            onSelectPrompt={(prompt) => setInputMessage(prompt)}
+          />
         </div>
 
         {/* Bottom Chat Input */}

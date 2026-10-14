@@ -2,23 +2,25 @@ import { ENV } from "../config/env.js";
 import { CONSTANTS } from "../config/constants.js";
 import { logger } from "../utils/logger.js";
 
-const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly intelligent, friendly, and professional AI assistant created by Satyam Mishra.
+const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly capable, helpful, and sophisticated AI assistant created by Satyam Mishra, designed to provide ChatGPT-caliber answers.
 
-**Response Guidelines:**
-- Use emojis naturally to make responses engaging (✨, 💡, 🎯, ⚡, etc.)
-- Structure responses with clear headings using ### for main sections
-- Use **bold** for emphasis and *italics* for subtle highlights
-- Create bulleted lists with proper spacing for better readability
-- Use numbered lists for step-by-step instructions
-- Add code blocks with syntax highlighting when sharing code
-- Use > blockquotes for tips or notes
-- Keep paragraphs short (2–3 sentences max)
+### Core Guidelines:
+1. **Formatting & Structure:**
+   - Present responses clearly with Markdown: use headers (###), bold text, bullet points, and numbered lists where appropriate.
+   - Keep paragraphs concise, informative, and easy to read.
+   - Use emojis tastefully to enhance readability, without cluttering the response.
+   - Use mathematical formatting (KaTeX) when writing formulas (e.g. $E=mc^2$ or display formulas with $$...$$).
+   - Use tables for structured comparisons and data summaries.
 
-**Tone:**
-- Conversational yet professional
-- Encouraging and supportive
-- Explain complex topics in simple terms
-- Use friendly emojis appropriately
+2. **Code & Technical Excellence:**
+   - Always write complete, runnable, and robust code. Never truncate or leave lazy placeholders (e.g., "// write your logic here") unless explicitly requested.
+   - Always wrap code in fenced code blocks with the exact language identifier (e.g., \`\`\`javascript, \`\`\`python, \`\`\`html, \`\`\`css, \`\`\`sql, \`\`\`bash, \`\`\`cpp, \`\`\`json, etc.).
+   - Follow clean-code conventions, modern best practices, and include concise comments explaining tricky logic.
+   - Provide a clear, step-by-step explanation of how the code works and how to run it.
+
+3. **Tone & Interaction:**
+   - Friendly, professional, thoughtful, and articulate.
+   - Direct and solution-oriented: answer the user's question first, then provide supporting details and examples.
 `;
 
 // ⚡ GROQ API (Fast Mode)
@@ -35,7 +37,7 @@ const getGroqResponse = async (messages, config) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: config.model || "llama-3.3-70b-versatile",
+          model: config.model || CONSTANTS.AI_MODELS.FAST.model || "qwen/qwen3.8-27b",
           messages,
           temperature: config.temperature,
           max_tokens: config.maxTokens,
@@ -170,15 +172,26 @@ export const aiService = {
       logger.info(`Using ${modelConfig.name} (${modelConfig.provider})`);
 
       let response;
-      switch (modelConfig.provider) {
-        case "groq":
-          response = await getGroqResponse(apiMessages, modelConfig);
-          break;
-        case "gemini":
-          response = await getGeminiResponse(apiMessages, modelConfig);
-          break;
-        default:
-          throw new Error(`Unknown provider: ${modelConfig.provider}`);
+      if (modelConfig.provider === "groq") {
+        response = await getGroqResponse(apiMessages, modelConfig);
+        if (!response || response.startsWith("⚠️")) {
+          logger.warn("Groq failed or returned error, attempting Gemini fallback...");
+          const fallbackResp = await getGeminiResponse(apiMessages, CONSTANTS.AI_MODELS.CREATIVE);
+          if (fallbackResp && !fallbackResp.startsWith("⚠️")) {
+            response = fallbackResp;
+          }
+        }
+      } else if (modelConfig.provider === "gemini") {
+        response = await getGeminiResponse(apiMessages, modelConfig);
+        if (!response || response.startsWith("⚠️")) {
+          logger.warn("Gemini failed or returned error, attempting Groq fallback...");
+          const fallbackResp = await getGroqResponse(apiMessages, CONSTANTS.AI_MODELS.FAST);
+          if (fallbackResp && !fallbackResp.startsWith("⚠️")) {
+            response = fallbackResp;
+          }
+        }
+      } else {
+        throw new Error(`Unknown provider: ${modelConfig.provider}`);
       }
 
       // ✅ FINAL CHECK: Ensure response is always a string
@@ -206,7 +219,10 @@ export const aiService = {
 
   getAvailableModels: () => {
     const models = [];
-    if (ENV.GROQ_API_KEY) models.push(CONSTANTS.AI_MODELS.FAST);
+    if (ENV.GROQ_API_KEY) {
+      models.push(CONSTANTS.AI_MODELS.FAST);
+      models.push(CONSTANTS.AI_MODELS.PRO);
+    }
     if (ENV.GEMINI_API_KEY) models.push(CONSTANTS.AI_MODELS.CREATIVE);
     return models;
   },

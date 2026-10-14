@@ -2,7 +2,8 @@ import React from "react";
 
 function ModelSelector({ selectedModel, onModelChange, darkMode }) {
   const models = [
-    { id: "fast", label: "⚡ Fast (Groq Llama 3.3 70B)" },
+    { id: "fast", label: "⚡ Fast (Qwen 27B • 0.2s)" },
+    { id: "pro", label: "🧠 Smart (GPT OSS 120B • 1s)" },
     { id: "creative", label: "🎨 Creative (Gemini Flash)" },
   ];
 

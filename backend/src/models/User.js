@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema({
     aiModel: {
       type: String,
       default: "fast",
-      enum: ["fast", "creative", "detailed"]
+      enum: ["fast", "pro", "creative", "detailed"]
     }
   },
   createdAt: {

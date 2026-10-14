@@ -1,19 +1,27 @@
 export const CONSTANTS = {
   AI_MODELS: {
     FAST: {
-      name: "⚡ Fast (Groq Llama 3.3 70B)",
+      name: "⚡ Fast (Groq Qwen 27B)",
       provider: "groq",
-      model: "llama-3.3-70b-versatile",
+      model: "qwen/qwen3.8-27b",
+      temperature: 0.6,
+      maxTokens: 4096,
+      topP: 0.9,
+    },
+    PRO: {
+      name: "🧠 Smart (GPT OSS 120B)",
+      provider: "groq",
+      model: "openai/gpt-oss-120b",
       temperature: 0.7,
-      maxTokens: 2048,
+      maxTokens: 4096,
       topP: 0.9,
     },
     CREATIVE: {
       name: "🎨 Creative (Gemini Flash)",
       provider: "gemini",
       model: "gemini-flash-latest",
-      temperature: 0.9,
-      maxTokens: 2048,
+      temperature: 0.8,
+      maxTokens: 4096,
       topP: 0.9,
     },
   },
@@ -31,9 +39,9 @@ export const CONSTANTS = {
   },
   // ✅ Add this for groqService.js
   GROQ: {
-    MODEL: "llama-3.3-70b-versatile",
-    TEMPERATURE: 0.7,
-    MAX_TOKENS: 2048,
+    MODEL: "qwen/qwen3.8-27b",
+    TEMPERATURE: 0.6,
+    MAX_TOKENS: 4096,
     TOP_P: 0.9,
     FREQUENCY_PENALTY: 0,
     PRESENCE_PENALTY: 0,

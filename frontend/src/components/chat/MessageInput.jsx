@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Send, Upload, Loader2, Mic, MicOff } from "lucide-react";
+import { ArrowUp, Paperclip, Loader2, Mic, MicOff, FileText } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
 
 const SpeechRecognition =
@@ -25,20 +25,17 @@ export const MessageInput = ({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height =
-        textareaRef.current.scrollHeight + "px";
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 180) + "px";
     }
   }, [value]);
 
-  // Start/stop speech recognition with robust checks
+  // Start/stop speech recognition
   const handleVoiceInput = async () => {
     if (!SpeechRecognition) {
-      console.warn("SpeechRecognition API not available in this browser.");
-      alert("Your browser doesn't support Speech Recognition. Use Chrome.");
+      alert("Your browser doesn't support Speech Recognition. Please use Chrome.");
       return;
     }
 
-    // If currently listening -> stop
     if (isListening) {
       try {
         recognitionRef.current?.stop();
@@ -49,11 +46,9 @@ export const MessageInput = ({
       return;
     }
 
-    // Ask for mic permission proactively (getUserMedia) to trigger browser prompt
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
-      console.error("Microphone permission denied or unavailable", err);
       alert("Microphone permission denied. Please allow microphone access.");
       return;
     }
@@ -66,13 +61,10 @@ export const MessageInput = ({
 
     recognition.onstart = () => {
       setIsListening(true);
-      console.log("[STT] started");
     };
 
     recognition.onerror = (ev) => {
-      console.error("[STT] error", ev);
       setIsListening(false);
-      // provide user friendly message for common errors
       if (ev.error === "not-allowed" || ev.error === "security") {
         alert("Microphone access blocked. Please enable it in browser settings.");
       }
@@ -80,19 +72,15 @@ export const MessageInput = ({
 
     recognition.onend = () => {
       setIsListening(false);
-      console.log("[STT] ended");
     };
 
     recognition.onresult = (event) => {
       try {
         const transcript = event.results[0][0].transcript;
-        // Append or replace text intelligently
         const newText = value ? `${value} ${transcript}` : transcript;
         onChange(newText);
-        // optionally auto-send here if you want:
-        // onSend(newText);
       } catch (e) {
-        console.error("[STT] result parse error", e);
+        console.error("Speech parsing error:", e);
       }
     };
 
@@ -100,71 +88,75 @@ export const MessageInput = ({
     try {
       recognition.start();
     } catch (e) {
-      console.error("recognition.start() failed:", e);
+      console.error("Recognition start failed:", e);
     }
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSend();
+      if (value.trim() && !isLoading && !isAnalyzing && !disabled) {
+        onSend();
+      }
     }
   };
 
+  const canSend = value.trim().length > 0 && !isLoading && !isAnalyzing && !disabled;
+
   return (
-    <div className="relative">
+    <div className="relative w-full">
+      {/* File analysis banner */}
       {isAnalyzing && (
         <div
-          className={`mb-3 flex items-center gap-2 px-4 py-2 rounded-lg ${
-            darkMode ? "bg-gray-800 text-gray-300" : "bg-blue-50 text-blue-700"
+          className={`mb-3 flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm shadow-sm animate-fadeIn ${
+            darkMode
+              ? "bg-gray-800/90 border-gray-700 text-blue-400"
+              : "bg-blue-50 border-blue-200 text-blue-700"
           }`}
         >
-          <Loader2 className="animate-spin" size={16} />
-          <span className="text-sm">Analyzing file...</span>
+          <Loader2 className="animate-spin text-blue-500" size={16} />
+          <span className="font-medium">Analyzing file content with AI...</span>
         </div>
       )}
 
+      {/* ChatGPT Floating Input Box */}
       <div
-        className={`flex gap-2 items-end ${
-          darkMode ? "bg-gray-800" : "bg-gray-100"
-        } rounded-2xl p-2`}
+        className={`flex items-end gap-2 px-3 py-2.5 rounded-3xl border transition-all duration-200 shadow-md ${
+          darkMode
+            ? "bg-[#212121] border-[#303030] focus-within:border-gray-500"
+            : "bg-white border-gray-200 focus-within:border-gray-400 shadow-gray-100"
+        }`}
       >
+        {/* Hidden file input */}
         <input
           type="file"
           ref={fileInputRef}
-          onChange={(e) => onFileSelect(e.target.files[0])}
+          onChange={(e) => {
+            if (e.target.files?.[0]) {
+              onFileSelect(e.target.files[0]);
+              e.target.value = "";
+            }
+          }}
           className="hidden"
           accept=".pdf,.txt,.js,.json,.py,.jpg,.jpeg,.png,.md,.csv"
         />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isAnalyzing || isLoading || disabled}
-          className={`p-2 rounded-lg ${
-            darkMode
-              ? "hover:bg-gray-700 text-gray-400 hover:text-gray-300"
-              : "hover:bg-gray-200 text-gray-600 hover:text-gray-700"
-          } disabled:opacity-50 transition-colors`}
-          title="Upload file"
-        >
-          <Upload size={20} />
-        </button>
 
+        {/* Attachment Button */}
         <button
           type="button"
-          onClick={handleVoiceInput}
+          onClick={() => fileInputRef.current?.click()}
           disabled={isAnalyzing || isLoading || disabled}
-          className={`p-2 rounded-lg transition-colors ${
-            isListening
-              ? "bg-red-600 text-white"
-              : darkMode
-              ? "bg-gray-700 text-gray-400 hover:text-gray-200"
-              : "bg-gray-200 text-gray-600 hover:text-gray-800"
-          }`}
-          title="Speak message"
+          className={`p-2 rounded-full transition-colors shrink-0 ${
+            darkMode
+              ? "hover:bg-gray-700/60 text-gray-400 hover:text-gray-200"
+              : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
+          } disabled:opacity-40 cursor-pointer`}
+          title="Upload document or image"
         >
-          {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+          <Paperclip size={19} />
         </button>
 
+        {/* Text Area */}
         <textarea
           ref={textareaRef}
           value={value}
@@ -172,27 +164,53 @@ export const MessageInput = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={isLoading || isAnalyzing || disabled}
-          className={`flex-1 bg-transparent ${
+          className={`flex-1 bg-transparent border-0 outline-none resize-none py-1.5 px-2 text-[15px] leading-relaxed max-h-44 ${
             darkMode
-              ? "text-white placeholder-gray-500"
+              ? "text-gray-100 placeholder-gray-500"
               : "text-gray-900 placeholder-gray-400"
-          } outline-none resize-none max-h-32 py-2 px-2`}
+          }`}
           rows={1}
-          style={{ minHeight: "24px" }}
+          style={{ minHeight: "26px" }}
         />
 
+        {/* Speech-to-Text Button */}
         <button
-          onClick={onSend}
-          disabled={!value.trim() || isLoading || isAnalyzing || disabled}
-          className={`p-2 rounded-lg transition-all ${
-            value.trim() && !isLoading && !isAnalyzing && !disabled
-              ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+          type="button"
+          onClick={handleVoiceInput}
+          disabled={isAnalyzing || isLoading || disabled}
+          className={`p-2 rounded-full transition-all shrink-0 cursor-pointer ${
+            isListening
+              ? "bg-red-500 text-white animate-pulse"
               : darkMode
-              ? "bg-gray-700 text-gray-500"
-              : "bg-gray-200 text-gray-400"
-          } disabled:cursor-not-allowed`}
+              ? "hover:bg-gray-700/60 text-gray-400 hover:text-gray-200"
+              : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
+          } disabled:opacity-40`}
+          title={isListening ? "Listening... click to stop" : "Voice input"}
         >
-          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+          {isListening ? <MicOff size={19} /> : <Mic size={19} />}
+        </button>
+
+        {/* Send Button */}
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={!canSend}
+          className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 ${
+            canSend
+              ? darkMode
+                ? "bg-white text-gray-900 hover:bg-gray-200 shadow-md cursor-pointer"
+                : "bg-black text-white hover:bg-gray-800 shadow-md cursor-pointer"
+              : darkMode
+              ? "bg-gray-700/60 text-gray-500 cursor-not-allowed"
+              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+          }`}
+          title="Send message"
+        >
+          {isLoading ? (
+            <Loader2 className="animate-spin" size={17} />
+          ) : (
+            <ArrowUp size={19} strokeWidth={2.5} />
+          )}
         </button>
       </div>
     </div>

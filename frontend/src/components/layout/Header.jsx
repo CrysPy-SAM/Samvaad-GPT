@@ -1,6 +1,6 @@
 import React from "react";
 import ModelSelector from "../chat/ModelSelector";
-import { Sun, Moon, User, LogOut } from "lucide-react";
+import { Sun, Moon, User, LogOut, PanelLeft } from "lucide-react";
 
 export const Header = ({
   isSidebarOpen,
@@ -27,14 +27,14 @@ export const Header = ({
         {/* Sidebar Toggle */}
         <button
           onClick={onToggleSidebar}
-          className={`p-2 rounded-lg ${
+          className={`p-2 rounded-lg transition-colors cursor-pointer ${
             darkMode
               ? "hover:bg-gray-800 text-gray-300"
               : "hover:bg-gray-100 text-gray-700"
           }`}
           title="Toggle Sidebar"
         >
-          ☰
+          <PanelLeft size={18} />
         </button>
 
         {/* App Name */}
