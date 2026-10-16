@@ -121,10 +121,10 @@ export const MessageInput = ({
 
       {/* ChatGPT Floating Input Box */}
       <div
-        className={`flex items-end gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-3xl border transition-all duration-200 shadow-md ${
+        className={`flex items-end gap-1.5 sm:gap-2.5 px-3 py-2 sm:py-2.5 rounded-3xl border transition-all duration-200 shadow-md ${
           darkMode
-            ? "bg-[#212121] border-[#303030] focus-within:border-gray-500"
-            : "bg-white border-gray-200 focus-within:border-gray-400 shadow-gray-100"
+            ? "bg-[#212121]/95 border-white/10 focus-within:border-emerald-500/50 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-black/20"
+            : "bg-white border-gray-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-gray-200/50"
         }`}
       >
         {/* Hidden file input */}
@@ -148,7 +148,7 @@ export const MessageInput = ({
           disabled={isAnalyzing || isLoading || disabled}
           className={`p-2 rounded-full transition-colors shrink-0 ${
             darkMode
-              ? "hover:bg-gray-700/60 text-gray-400 hover:text-gray-200"
+              ? "hover:bg-white/10 text-gray-400 hover:text-gray-200"
               : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
           } disabled:opacity-40 cursor-pointer`}
           title="Upload document or image"
@@ -181,9 +181,9 @@ export const MessageInput = ({
           disabled={isAnalyzing || isLoading || disabled}
           className={`p-2 rounded-full transition-all shrink-0 cursor-pointer ${
             isListening
-              ? "bg-red-500 text-white animate-pulse"
+              ? "bg-red-500 text-white shadow-md animate-pulse"
               : darkMode
-              ? "hover:bg-gray-700/60 text-gray-400 hover:text-gray-200"
+              ? "hover:bg-white/10 text-gray-400 hover:text-gray-200"
               : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
           } disabled:opacity-40`}
           title={isListening ? "Listening... click to stop" : "Voice input"}
@@ -199,18 +199,16 @@ export const MessageInput = ({
           disabled={!canSend}
           className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 ${
             canSend
-              ? darkMode
-                ? "bg-white text-gray-900 hover:bg-gray-200 shadow-md cursor-pointer"
-                : "bg-black text-white hover:bg-gray-800 shadow-md cursor-pointer"
+              ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md cursor-pointer active:scale-95"
               : darkMode
-              ? "bg-gray-700/60 text-gray-500 cursor-not-allowed"
+              ? "bg-white/10 text-gray-500 cursor-not-allowed"
               : "bg-gray-200 text-gray-400 cursor-not-allowed"
           }`}
           title="Send message"
           aria-label="Send message"
         >
           {isLoading ? (
-            <Loader2 className="animate-spin" size={17} />
+            <Loader2 className="animate-spin text-emerald-400" size={17} />
           ) : (
             <ArrowUp size={19} strokeWidth={2.5} />
           )}

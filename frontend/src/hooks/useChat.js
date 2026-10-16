@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { chatAPI } from "../api/chat.api";
 import { useAuth } from "./useAuth";
 
@@ -9,13 +9,42 @@ export const useChat = () => {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const abortControllerRef = useRef(null);
+
+  // 🧹 Robust event listener for immediate session cleanup on logout / expiration
+  useEffect(() => {
+    const handleLogoutCleanup = () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setThreads([]);
+      setMessages([]);
+      setCurrentThreadId(null);
+      setIsLoading(false);
+      setError(null);
+    };
+
+    window.addEventListener("auth:logout", handleLogoutCleanup);
+    window.addEventListener("auth:session_expired", handleLogoutCleanup);
+
+    return () => {
+      window.removeEventListener("auth:logout", handleLogoutCleanup);
+      window.removeEventListener("auth:session_expired", handleLogoutCleanup);
+    };
+  }, []);
 
   // 🔄 Handle guest vs logged-in state transitions cleanly
   useEffect(() => {
-    // Whenever auth state switches, reset the active conversation so no chat leaks
+    // Whenever auth state switches, reset the active conversation and abort ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setMessages([]);
     setCurrentThreadId(null);
     setError(null);
+    setIsLoading(false);
 
     if (isGuest) {
       setThreads([]);
@@ -67,10 +96,17 @@ export const useChat = () => {
     }
   }, [fetchThreads]);
 
-  // 💬 Send message with optimistic update & auto-thread association
+  // 💬 Send message with optimistic update, abort controller, & auto-thread association
   const sendMessage = useCallback(
     async (message, modelMode = "fast") => {
       if (!message || !message.trim()) return null;
+
+      // Abort any existing in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       try {
         setError(null);
@@ -86,13 +122,19 @@ export const useChat = () => {
         // Optimistically add user message to conversation
         setMessages((prev) => [...prev, userMsg]);
 
-        // Send to backend (backend auto-creates thread for logged-in user if currentThreadId is null)
+        // Send to backend with cancellation signal
         const data = await chatAPI.sendMessage(
           trimmedMsg,
           modelMode,
           currentThreadId,
-          isGuest
+          isGuest,
+          controller.signal
         );
+
+        // Check if aborted before applying state
+        if (controller.signal.aborted) {
+          return null;
+        }
 
         if (data.success && data.message) {
           // Append assistant message
@@ -109,11 +151,18 @@ export const useChat = () => {
 
         return data;
       } catch (err) {
+        // If aborted intentionally (e.g. user logged out or navigated), do not treat as error
+        if (controller.signal.aborted || err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+          return null;
+        }
+
         setError(err.message || "Failed to send message");
         console.error("Error sending message:", err);
         throw err;
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     },
     [currentThreadId, isGuest, fetchThreads]
@@ -140,15 +189,25 @@ export const useChat = () => {
   );
 
   const resetChat = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setCurrentThreadId(null);
     setMessages([]);
+    setIsLoading(false);
     setError(null);
   }, []);
 
   const clearChat = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setThreads([]);
     setMessages([]);
     setCurrentThreadId(null);
+    setIsLoading(false);
     setError(null);
   }, []);
 

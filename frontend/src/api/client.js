@@ -25,10 +25,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem(STORAGE_KEYS.TOKEN);
       localStorage.removeItem(STORAGE_KEYS.USER);
-      window.location.href = "/";
+      localStorage.removeItem(STORAGE_KEYS.GUEST_MESSAGES);
+      localStorage.removeItem(STORAGE_KEYS.GUEST_COUNT);
+      window.dispatchEvent(new Event("auth:session_expired"));
     }
     return Promise.reject(error);
   }

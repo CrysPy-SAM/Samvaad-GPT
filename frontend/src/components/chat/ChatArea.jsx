@@ -43,14 +43,17 @@ export const ChatArea = ({ messages, isLoading, onSelectPrompt }) => {
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full max-w-2xl mx-auto px-2 sm:px-4 py-4 sm:py-8 animate-fadeIn">
-        {/* ChatGPT Logo Icon */}
-        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-xl mb-3 sm:mb-6 shrink-0">
-          <Sparkles className="w-6 h-6 sm:w-8 sm:h-8" />
+      <div className="flex flex-col items-center justify-center min-h-full max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-12 animate-fadeIn">
+        {/* ChatGPT Logo Icon with subtle aura */}
+        <div className="relative mb-4 sm:mb-6 shrink-0">
+          <div className="absolute inset-0 bg-emerald-500/20 rounded-3xl blur-xl" />
+          <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl flex items-center justify-center bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-xl">
+            <Sparkles className="w-7 h-7 sm:w-8 sm:h-8" />
+          </div>
         </div>
 
         <h2
-          className={`text-xl sm:text-2xl md:text-3xl font-bold mb-1.5 sm:mb-2 tracking-tight text-center ${
+          className={`text-xl sm:text-2xl md:text-3xl font-bold mb-2 tracking-tight text-center ${
             darkMode ? "text-white" : "text-gray-900"
           }`}
         >
@@ -58,7 +61,7 @@ export const ChatArea = ({ messages, isLoading, onSelectPrompt }) => {
         </h2>
 
         <p
-          className={`text-xs sm:text-sm md:text-base text-center max-w-md mb-5 sm:mb-8 px-2 ${
+          className={`text-xs sm:text-sm md:text-base text-center max-w-md mb-6 sm:mb-9 px-2 leading-relaxed ${
             darkMode ? "text-gray-400" : "text-gray-600"
           }`}
         >
@@ -66,22 +69,22 @@ export const ChatArea = ({ messages, isLoading, onSelectPrompt }) => {
         </p>
 
         {/* Suggestion Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 w-full mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5 w-full mb-6 sm:mb-8">
           {promptSuggestions.map((item, index) => (
             <button
               key={index}
               onClick={() => onSelectPrompt && onSelectPrompt(item.prompt)}
-              className={`flex flex-col items-start p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
+              className={`flex flex-col items-start p-3.5 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer group hover:-translate-y-0.5 ${
                 darkMode
-                  ? "bg-[#212121] border-[#303030] hover:border-gray-500 hover:bg-[#282828]"
-                  : "bg-white border-gray-200 hover:border-gray-400 hover:shadow-md"
+                  ? "bg-[#212121]/90 border-white/10 hover:border-emerald-500/40 hover:bg-[#262626] shadow-sm hover:shadow-lg"
+                  : "bg-white border-gray-200 hover:border-emerald-500/40 hover:shadow-md"
               }`}
             >
-              <div className="mb-1.5 sm:mb-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-gray-800/40 border border-gray-700/40 group-hover:scale-105 transition-transform">
+              <div className="mb-2 p-2 rounded-xl bg-white/5 border border-white/10 group-hover:scale-105 transition-transform">
                 {item.icon}
               </div>
               <h3
-                className={`font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1 ${
+                className={`font-semibold text-xs sm:text-sm mb-1 group-hover:text-emerald-500 transition-colors ${
                   darkMode ? "text-gray-200" : "text-gray-800"
                 }`}
               >
@@ -101,13 +104,13 @@ export const ChatArea = ({ messages, isLoading, onSelectPrompt }) => {
         {/* Guest Mode Badge */}
         {isGuest && (
           <div
-            className={`flex items-center justify-center gap-2 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-2xl sm:rounded-full border text-[11px] sm:text-xs font-medium text-center max-w-full ${
+            className={`flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-2xl border text-[11px] sm:text-xs font-medium text-center max-w-full ${
               darkMode
-                ? "bg-blue-950/30 border-blue-800/60 text-blue-300"
+                ? "bg-blue-950/30 border-blue-500/30 text-blue-300"
                 : "bg-blue-50 border-blue-200 text-blue-700"
             }`}
           >
-            <Sparkles size={14} className="shrink-0" />
+            <Sparkles size={14} className="shrink-0 text-blue-400" />
             <span>
               Guest Mode: {APP_CONFIG.GUEST_CHAT_LIMIT} free messages • Login for saved threads & unlimited chats
             </span>
@@ -118,7 +121,7 @@ export const ChatArea = ({ messages, isLoading, onSelectPrompt }) => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-3 sm:space-y-4 pb-4 sm:pb-6">
+    <div className="max-w-3xl mx-auto space-y-4 sm:space-y-5 pb-6">
       {messages.map((msg, idx) => (
         <Message
           key={idx}
@@ -130,13 +133,13 @@ export const ChatArea = ({ messages, isLoading, onSelectPrompt }) => {
 
       {/* Thinking Indicator */}
       {isLoading && (
-        <div className="flex gap-2.5 sm:gap-3.5 items-start animate-fadeIn w-full py-2">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-md font-bold shrink-0">
+        <div className="flex gap-3 items-start animate-fadeIn w-full py-2">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-md font-bold shrink-0">
             <Sparkles size={15} />
           </div>
-          <div className="flex items-center gap-2 pt-1 text-xs sm:text-sm text-gray-400">
+          <div className="flex items-center gap-2.5 pt-1.5 text-xs sm:text-sm text-gray-400">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span className="font-medium animate-pulse">Thinking & generating response...</span>
+            <span className="font-medium animate-pulse text-emerald-400">Thinking & generating response...</span>
           </div>
         </div>
       )}

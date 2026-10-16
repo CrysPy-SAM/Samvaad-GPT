@@ -29,15 +29,19 @@ export const chatAPI = {
     return response.data;
   },
 
-sendMessage: async (message, modelMode = "fast", threadId = null, isGuest = true) => {
-  const response = await apiClient.post("/chat/chat", {
-    threadId,
-    message,
-    isGuest,
-    modelMode,
-  });
-  return response.data;
-},
+  sendMessage: async (message, modelMode = "fast", threadId = null, isGuest = true, signal = null) => {
+    const response = await apiClient.post(
+      "/chat/chat",
+      {
+        threadId,
+        message,
+        isGuest,
+        modelMode,
+      },
+      { signal }
+    );
+    return response.data;
+  },
 
 
   clearMessages: async (threadId) => {

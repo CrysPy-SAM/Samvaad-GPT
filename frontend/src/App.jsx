@@ -73,35 +73,58 @@ function App() {
     0
   );
 
-  // 🛡️ Strict Isolation: Guest chats NEVER leak into logged-in user account
+  // 🛡️ Strict Isolation: Guest chats NEVER leak into logged-in user account or vice-versa
   useEffect(() => {
     if (isGuest) {
-      // In guest mode, restore temporary guest messages if any
-      if (guestMessages && guestMessages.length > 0) {
+      // In guest mode, only restore temporary guest messages if no authenticated thread is open
+      if (!user && !currentThreadId && guestMessages && guestMessages.length > 0) {
         setMessages(guestMessages);
       } else {
         setMessages([]);
       }
     } else {
-      // User is LOGGED IN!
-      // Immediately clear all guest session messages and count
+      // User is LOGGED IN: Immediately clear all guest session messages and count
       clearGuestMessages();
       clearGuestCount();
       resetChat();
       fetchThreads();
     }
-  }, [isGuest]);
+  }, [isGuest, user]);
 
-  // Keep guest storage in sync ONLY while in guest mode
+  // Keep guest storage in sync ONLY during genuine unauthenticated guest sessions
   useEffect(() => {
-    if (isGuest) {
+    if (isGuest && !user && !currentThreadId) {
       if (messages && messages.length > 0) {
         setGuestMessages(messages);
       } else {
         clearGuestMessages();
       }
     }
-  }, [messages, isGuest]);
+  }, [messages, isGuest, user, currentThreadId]);
+
+  // 🧹 Immediate cleanup listener on session termination / logout
+  useEffect(() => {
+    const handleLogoutEvent = () => {
+      clearGuestMessages();
+      clearGuestCount();
+      clearChat();
+      resetChat();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener("auth:logout", handleLogoutEvent);
+    window.addEventListener("auth:session_expired", handleLogoutEvent);
+    return () => {
+      window.removeEventListener("auth:logout", handleLogoutEvent);
+      window.removeEventListener("auth:session_expired", handleLogoutEvent);
+    };
+  }, []);
 
   // ⚙️ Handle model change
   const handleModelChange = async (modelMode) => {
@@ -204,11 +227,22 @@ function App() {
     clearGuestCount();
   };
 
-  // 🚪 Clean Logout
-  const handleLogout = () => {
+  // 🚪 Clean Logout with complete state, storage, and audio cleanup
+  const handleLogout = async () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        // safe ignore
+      }
+    }
+
     handleClearGuestChat();
     clearChat();
-    logout();
+    resetChat();
+
+    await logout();
+
     if (isMobile) {
       setIsSidebarOpen(false);
     }
@@ -216,8 +250,8 @@ function App() {
 
   return (
     <div
-      className={`flex h-screen ${
-        darkMode ? "bg-gray-900" : "bg-gray-50"
+      className={`flex h-screen min-h-[100dvh] max-h-[100dvh] ${
+        darkMode ? "bg-[#181818]" : "bg-gray-50"
       } overflow-hidden relative`}
     >
       {/* 📱 Mobile Backdrop Overlay */}
@@ -238,7 +272,7 @@ function App() {
               }`
             : `${isSidebarOpen ? "w-64" : "w-0"} transition-all duration-300 relative`
         } ${
-          darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
+          darkMode ? "bg-[#171717] border-white/10" : "bg-white border-gray-200"
         } border-r overflow-hidden flex flex-col shrink-0`}
       >
         <Sidebar
@@ -285,8 +319,8 @@ function App() {
         {/* Bottom Chat Input */}
         <div
           className={`${
-            darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
-          } border-t px-2.5 sm:px-4 py-2 sm:py-3`}
+            darkMode ? "bg-[#181818]/90 border-white/10" : "bg-white/90 border-gray-200"
+          } border-t px-2.5 sm:px-6 py-2 sm:py-3.5 backdrop-blur-md`}
         >
           <div className="max-w-3xl mx-auto space-y-2 sm:space-y-3">
             <MessageInput

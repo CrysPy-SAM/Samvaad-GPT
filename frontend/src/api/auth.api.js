@@ -21,4 +21,13 @@ export const authAPI = {
     const response = await apiClient.post("/auth/verify-otp", { phone, otp, name });
     return response.data;
   },
+
+  logout: async () => {
+    try {
+      const response = await apiClient.post("/auth/logout");
+      return response.data;
+    } catch (e) {
+      return { success: true };
+    }
+  },
 };
