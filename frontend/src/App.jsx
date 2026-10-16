@@ -32,11 +32,30 @@ function App() {
     clearChat,
   } = useChat();
 
-  // ✅ UI States
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // 📱 Mobile responsiveness state (sidebar defaults to closed on mobile, open on desktop)
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 768 : true
+  );
   const [inputMessage, setInputMessage] = useState("");
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Resize listener to handle viewport transitions
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Auto-collapse sidebar when transitioning from desktop to mobile
+      if (mobile && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isSidebarOpen]);
 
   // ✅ Model Mode
   const [selectedModel, setSelectedModel] = useLocalStorage(
@@ -173,6 +192,9 @@ function App() {
     } else {
       resetChat();
     }
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
   };
 
   // 🧹 Clear guest messages
@@ -187,35 +209,58 @@ function App() {
     handleClearGuestChat();
     clearChat();
     logout();
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
   };
 
   return (
     <div
       className={`flex h-screen ${
         darkMode ? "bg-gray-900" : "bg-gray-50"
-      } overflow-hidden`}
+      } overflow-hidden relative`}
     >
-      {/* Sidebar */}
+      {/* 📱 Mobile Backdrop Overlay */}
+      {isMobile && isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 transition-opacity animate-fadeIn md:hidden"
+          aria-label="Close sidebar"
+        />
+      )}
+
+      {/* 🧭 Sidebar: Desktop collapsible flex column / Mobile fixed drawer */}
       <div
-        className={`${isSidebarOpen ? "w-64" : "w-0"} ${
+        className={`${
+          isMobile
+            ? `fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] transform transition-transform duration-300 ease-in-out shadow-2xl ${
+                isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+              }`
+            : `${isSidebarOpen ? "w-64" : "w-0"} transition-all duration-300 relative`
+        } ${
           darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
-        } border-r transition-all duration-300 overflow-hidden flex flex-col`}
+        } border-r overflow-hidden flex flex-col shrink-0`}
       >
         <Sidebar
           threads={threads}
           currentThreadId={currentThreadId}
           onNewChat={handleNewChat}
-          onSelectThread={loadThread}
+          onSelectThread={(id) => {
+            loadThread(id);
+            if (isMobile) setIsSidebarOpen(false);
+          }}
           onDeleteThread={deleteThread}
           guestChatCount={guestChatCount}
           onClearGuestChat={handleClearGuestChat}
           user={user}
           isGuest={isGuest}
+          onClose={() => setIsSidebarOpen(false)}
+          isMobile={isMobile}
         />
       </div>
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* 💬 Main Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -229,7 +274,7 @@ function App() {
           onLogout={handleLogout}
         />
 
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="flex-1 overflow-y-auto px-2.5 sm:px-4 py-3 sm:py-6">
           <ChatArea
             messages={messages}
             isLoading={isLoading}
@@ -241,9 +286,9 @@ function App() {
         <div
           className={`${
             darkMode ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200"
-          } border-t px-4 py-4`}
+          } border-t px-2.5 sm:px-4 py-2 sm:py-3`}
         >
-          <div className="max-w-3xl mx-auto space-y-3">
+          <div className="max-w-3xl mx-auto space-y-2 sm:space-y-3">
             <MessageInput
               value={inputMessage}
               onChange={setInputMessage}
@@ -259,8 +304,8 @@ function App() {
               }
             />
             <p
-              className={`text-xs text-center ${
-                darkMode ? "text-gray-600" : "text-gray-500"
+              className={`text-[11px] sm:text-xs text-center px-1 leading-normal ${
+                darkMode ? "text-gray-500" : "text-gray-500"
               }`}
             >
               {isGuest && `Guest: ${guestChatCount}/${APP_CONFIG.GUEST_CHAT_LIMIT} messages • `}
