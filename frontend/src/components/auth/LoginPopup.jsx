@@ -85,25 +85,26 @@ export const LoginPopup = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50 p-3 sm:p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="relative w-[380px] bg-gradient-to-b from-gray-900 to-gray-950 rounded-2xl shadow-2xl p-8 text-white border border-gray-800"
+        className="relative w-full max-w-[380px] bg-gradient-to-b from-gray-900 to-gray-950 rounded-2xl shadow-2xl p-5 sm:p-8 text-white border border-gray-800 max-h-[92vh] overflow-y-auto"
       >
         <button
           onClick={onClose}
-          className="absolute top-3 right-4 text-gray-400 hover:text-white transition"
+          className="absolute top-3 right-4 text-gray-400 hover:text-white transition p-1 cursor-pointer"
+          aria-label="Close dialog"
         >
           <X size={22} />
         </button>
 
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold">
+        <div className="text-center mb-5 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold">
             {isRegister ? "Create Your Account" : "Welcome Back"} 👋
           </h2>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-xs sm:text-sm text-gray-400 mt-1">
             {isRegister
               ? "Join Samvaad-GPT to start exploring."
               : "Login to continue your conversations."}
