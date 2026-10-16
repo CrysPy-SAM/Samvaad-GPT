@@ -25,7 +25,7 @@ const CodeBlock = ({ language, value, darkMode }) => {
   return (
     <div className="my-4 rounded-xl overflow-hidden border border-gray-700/60 bg-[#1e1e1e] shadow-xl">
       {/* Code Block Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#2d2d2d] text-gray-300 text-xs font-mono border-b border-gray-700/60 select-none">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-1.5 sm:py-2 bg-[#2d2d2d] text-gray-300 text-xs font-mono border-b border-gray-700/60 select-none">
         <span className="flex items-center gap-1.5 font-semibold text-gray-300 uppercase tracking-wider text-[11px]">
           <Terminal size={14} className="text-blue-400" />
           {cleanLang}
@@ -50,16 +50,16 @@ const CodeBlock = ({ language, value, darkMode }) => {
       </div>
 
       {/* Code Body */}
-      <div className="overflow-x-auto text-[13.5px] leading-relaxed">
+      <div className="overflow-x-auto text-[13px] sm:text-[13.5px] leading-relaxed">
         <SyntaxHighlighter
           style={oneDark}
           language={cleanLang === "code" || cleanLang === "text" ? "text" : cleanLang}
           PreTag="div"
           customStyle={{
             margin: 0,
-            padding: "1rem 1.25rem",
+            padding: "0.75rem 1rem",
             backgroundColor: "#1e1e1e",
-            fontSize: "0.875rem",
+            fontSize: "0.85rem",
             lineHeight: "1.65",
             fontFamily: "'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace",
           }}
@@ -143,9 +143,9 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
       }`}
     >
       <div
-        className={`flex gap-3.5 max-w-full ${
+        className={`flex gap-2.5 sm:gap-3.5 max-w-full ${
           isUser
-            ? "flex-row-reverse max-w-[85%] md:max-w-[75%]"
+            ? "flex-row-reverse max-w-[92%] sm:max-w-[85%] md:max-w-[75%]"
             : "flex-row w-full"
         }`}
       >
@@ -153,17 +153,17 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
         <div className="shrink-0 mt-0.5">
           {isUser ? (
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs shadow-md ${
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-medium text-xs shadow-md ${
                 darkMode
                   ? "bg-gradient-to-tr from-gray-700 to-gray-600 text-gray-200"
                   : "bg-gradient-to-tr from-gray-300 to-gray-200 text-gray-700"
               }`}
             >
-              <User size={16} />
+              <User size={15} />
             </div>
           ) : (
-            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-md font-bold">
-              <Sparkles size={16} />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-md font-bold">
+              <Sparkles size={15} />
             </div>
           )}
         </div>
@@ -173,7 +173,7 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
           {isUser ? (
             /* User Message Bubble */
             <div
-              className={`px-5 py-3 rounded-3xl text-[15px] leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
+              className={`px-3.5 sm:px-5 py-2 sm:py-3 rounded-2xl sm:rounded-3xl text-sm sm:text-[15px] leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
                 darkMode
                   ? "bg-[#2f2f2f] text-gray-100"
                   : "bg-blue-600 text-white"
@@ -184,7 +184,7 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
           ) : (
             /* Assistant Message Layout (Full reading width, ChatGPT typography) */
             <div
-              className={`text-[15px] leading-7 break-words ${
+              className={`text-sm sm:text-[15px] leading-6 sm:leading-7 break-words ${
                 darkMode ? "text-gray-100" : "text-gray-800"
               }`}
             >
@@ -216,7 +216,7 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
                       // Inline Code
                       return (
                         <code
-                          className={`px-1.5 py-0.5 rounded text-[13px] font-mono font-medium ${
+                          className={`px-1.5 py-0.5 rounded text-[12px] sm:text-[13px] font-mono font-medium ${
                             darkMode
                               ? "bg-gray-800 text-pink-400 border border-gray-700/60"
                               : "bg-gray-100 text-pink-600 border border-gray-200"
@@ -230,27 +230,27 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
 
                     // Paragraphs
                     p({ children }) {
-                      return <p className="my-2.5 leading-7">{children}</p>;
+                      return <p className="my-2 sm:my-2.5 leading-6 sm:leading-7">{children}</p>;
                     },
 
                     // Headings
                     h1({ children }) {
                       return (
-                        <h1 className="text-2xl font-bold mt-6 mb-3 tracking-tight">
+                        <h1 className="text-xl sm:text-2xl font-bold mt-4 sm:mt-6 mb-2 sm:mb-3 tracking-tight">
                           {children}
                         </h1>
                       );
                     },
                     h2({ children }) {
                       return (
-                        <h2 className="text-xl font-bold mt-5 mb-2.5 tracking-tight">
+                        <h2 className="text-lg sm:text-xl font-bold mt-3.5 sm:mt-5 mb-2 sm:mb-2.5 tracking-tight">
                           {children}
                         </h2>
                       );
                     },
                     h3({ children }) {
                       return (
-                        <h3 className="text-lg font-semibold mt-4 mb-2 tracking-tight">
+                        <h3 className="text-base sm:text-lg font-semibold mt-3 sm:mt-4 mb-1.5 sm:mb-2 tracking-tight">
                           {children}
                         </h3>
                       );
@@ -359,10 +359,10 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
 
               {/* Action Buttons & Metadata Bar (ChatGPT style) */}
               {typingDone && (
-                <div className="flex items-center gap-3 mt-3 pt-2 text-xs text-gray-400 select-none">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mt-3 pt-2 text-xs text-gray-400 select-none">
                   <button
                     onClick={() => handleCopyMessage(content)}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-700/40 hover:text-gray-200 transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-2 sm:py-1 rounded-md hover:bg-gray-700/40 hover:text-gray-200 transition-colors cursor-pointer"
                     title="Copy response"
                   >
                     {copied ? (
@@ -380,7 +380,7 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
 
                   <button
                     onClick={() => speak(content)}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-700/40 hover:text-gray-200 transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-2 sm:py-1 rounded-md hover:bg-gray-700/40 hover:text-gray-200 transition-colors cursor-pointer"
                     title={isSpeaking ? "Stop speaking" : "Read aloud"}
                   >
                     {isSpeaking ? (
@@ -403,7 +403,7 @@ export const Message = ({ message = {}, isUser = false, isLatest = false }) => {
                   )}
 
                   {timestamp && (
-                    <span className="text-[11px] text-gray-500 ml-auto">
+                    <span className="text-[11px] text-gray-500 sm:ml-auto">
                       {formatTime(timestamp)}
                     </span>
                   )}

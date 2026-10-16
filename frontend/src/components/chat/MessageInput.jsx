@@ -121,7 +121,7 @@ export const MessageInput = ({
 
       {/* ChatGPT Floating Input Box */}
       <div
-        className={`flex items-end gap-2 px-3 py-2.5 rounded-3xl border transition-all duration-200 shadow-md ${
+        className={`flex items-end gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-3xl border transition-all duration-200 shadow-md ${
           darkMode
             ? "bg-[#212121] border-[#303030] focus-within:border-gray-500"
             : "bg-white border-gray-200 focus-within:border-gray-400 shadow-gray-100"
@@ -152,6 +152,7 @@ export const MessageInput = ({
               : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
           } disabled:opacity-40 cursor-pointer`}
           title="Upload document or image"
+          aria-label="Upload document or image"
         >
           <Paperclip size={19} />
         </button>
@@ -164,7 +165,7 @@ export const MessageInput = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={isLoading || isAnalyzing || disabled}
-          className={`flex-1 bg-transparent border-0 outline-none resize-none py-1.5 px-2 text-[15px] leading-relaxed max-h-44 ${
+          className={`flex-1 bg-transparent border-0 outline-none resize-none py-1.5 px-1.5 sm:px-2 text-base sm:text-[15px] leading-relaxed max-h-44 ${
             darkMode
               ? "text-gray-100 placeholder-gray-500"
               : "text-gray-900 placeholder-gray-400"
@@ -186,6 +187,7 @@ export const MessageInput = ({
               : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
           } disabled:opacity-40`}
           title={isListening ? "Listening... click to stop" : "Voice input"}
+          aria-label="Voice input"
         >
           {isListening ? <MicOff size={19} /> : <Mic size={19} />}
         </button>
@@ -205,6 +207,7 @@ export const MessageInput = ({
               : "bg-gray-200 text-gray-400 cursor-not-allowed"
           }`}
           title="Send message"
+          aria-label="Send message"
         >
           {isLoading ? (
             <Loader2 className="animate-spin" size={17} />

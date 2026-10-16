@@ -8,24 +8,19 @@ function ModelSelector({ selectedModel, onModelChange, darkMode }) {
   ];
 
   return (
-    <div className="flex items-center gap-2 justify-center">
-      <label
-        className={`text-sm font-medium ${
-          darkMode ? "text-gray-300" : "text-gray-700"
-        }`}
-      >
-      </label>
+    <div className="flex items-center justify-center min-w-0">
       <select
         value={selectedModel}
         onChange={(e) => onModelChange(e.target.value)}
-        className={`px-3 py-1.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all duration-200
+        className={`w-full max-w-[130px] sm:max-w-[180px] md:max-w-none text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all duration-200 truncate cursor-pointer font-medium
           ${darkMode
             ? "bg-gray-900 border-gray-700 text-white"
             : "bg-white border-gray-300 text-gray-800"
           }`}
+        aria-label="Select AI Model"
       >
         {models.map((model) => (
-          <option key={model.id} value={model.id}>
+          <option key={model.id} value={model.id} className="text-xs sm:text-sm">
             {model.label}
           </option>
         ))}
