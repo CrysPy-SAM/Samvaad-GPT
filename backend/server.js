@@ -30,6 +30,15 @@ app.use(
   })
 );
 
+// Prevent sensitive user/chat data caching in browser or proxies
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  res.set("Surrogate-Control", "no-store");
+  next();
+});
+
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: ENV.RATE_LIMIT_WINDOW,
