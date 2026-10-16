@@ -145,22 +145,27 @@ verifyOTP: async (req, res, next) => {
       token,
       user: { id: user._id, name: user.name, phone: user.phone || phone, email: user.email },
     });
-  // Logout - Revoke user token / session
-  logout: async (req, res, next) => {
-    try {
-      const userId = req.user?.id || req.user?._id;
-      if (userId) {
-        await User.findByIdAndUpdate(userId, {
-          tokenInvalidatedBefore: new Date(),
-        });
-        logger.info(`User logged out and session revoked: ${userId}`);
-      }
-      res.status(200).json({
-        success: true,
-        message: "Logged out successfully",
+  } catch (err) {
+    next(err);
+  }
+},
+
+// Logout - Revoke user token / session
+logout: async (req, res, next) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (userId) {
+      await User.findByIdAndUpdate(userId, {
+        tokenInvalidatedBefore: new Date(),
       });
-    } catch (err) {
-      next(err);
+      logger.info(`User logged out and session revoked: ${userId}`);
     }
-  },
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+},
 };
