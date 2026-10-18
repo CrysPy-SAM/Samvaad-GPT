@@ -44,14 +44,18 @@ export const authController = {
       const { email, password } = req.body;
       const normalizedEmail = (email || "").trim().toLowerCase();
 
+      if (!normalizedEmail || !password) {
+        throw new ApiError(400, "Email and password are required");
+      }
+
       const user = await User.findOne({ email: normalizedEmail });
       if (!user) {
-        throw new ApiError(400, "User not found");
+        throw new ApiError(401, "Invalid email or password");
       }
 
       const isMatch = await user.comparePassword(password);
       if (!isMatch) {
-        throw new ApiError(400, "Invalid credentials");
+        throw new ApiError(401, "Invalid email or password");
       }
 
       const token = jwt.sign({ id: user._id }, ENV.JWT_SECRET, {
@@ -73,34 +77,44 @@ export const authController = {
 
   // Send OTP (Phone Auth)
   sendOTP: async (req, res, next) => {
-  try {
-    const { phone, name } = req.body;
+    try {
+      const { phone, name } = req.body;
 
-    if (!phone) {
-      throw new ApiError(400, "Phone number required");
+      if (!phone) {
+        throw new ApiError(400, "Phone number required");
+      }
+
+      const cleanedDigits = String(phone).replace(/\D/g, "");
+      if (cleanedDigits.length < 10 || cleanedDigits.length > 15) {
+        throw new ApiError(400, "Please enter a valid phone number (10 to 15 digits)");
+      }
+
+      await twilioService.sendOTP(phone);
+
+      logger.info(`OTP sent to: ${phone}${name ? ` (Name: ${name})` : ""}`);
+
+      res.json({
+        success: true,
+        message: "OTP sent successfully",
+      });
+    } catch (err) {
+      next(err);
     }
+  },
 
-    await twilioService.sendOTP(phone);
+  // Verify OTP (Phone Auth)
+  verifyOTP: async (req, res, next) => {
+    try {
+      const { phone, otp, name } = req.body;
 
-    logger.info(`OTP sent to: ${phone}${name ? ` (Name: ${name})` : ""}`);
+      if (!phone || !otp) {
+        throw new ApiError(400, "Phone and OTP required");
+      }
 
-    res.json({
-      success: true,
-      message: "OTP sent successfully",
-    });
-  } catch (err) {
-    next(err);
-  }
-},
-
-// Verify OTP (Phone Auth)
-verifyOTP: async (req, res, next) => {
-  try {
-    const { phone, otp, name } = req.body;
-
-    if (!phone || !otp) {
-      throw new ApiError(400, "Phone and OTP required");
-    }
+      const cleanOtp = String(otp).trim();
+      if (cleanOtp.length !== 6 || !/^\d{6}$/.test(cleanOtp)) {
+        throw new ApiError(400, "A valid 6-digit OTP is required");
+      }
 
     // ✅ Verify OTP via Twilio
     const isVerified = await twilioService.verifyOTP(phone, otp);

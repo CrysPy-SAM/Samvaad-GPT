@@ -8,13 +8,15 @@ const router = express.Router();
 // ✅ All thread routes require login
 router.get("/threads", authMiddleware, chatController.getThreads);
 router.get("/thread/:threadId", authMiddleware, chatController.getThread);
+router.get("/threads/:threadId", authMiddleware, chatController.getThread); // REST plural alias
 router.post("/thread", authMiddleware, chatController.createThread);
 router.patch("/thread/:threadId", authMiddleware, chatController.updateThread);
 router.delete("/thread/:threadId", authMiddleware, chatController.deleteThread);
 router.delete("/thread/:threadId/messages", authMiddleware, chatController.clearMessages);
 
-// ✅ Chat route allows both guest and authenticated users
+// ✅ Chat message routes allows both guest and authenticated users
 router.post("/chat", optionalAuth, validateChatMessage, chatController.sendMessage);
+router.post("/message", optionalAuth, validateChatMessage, chatController.sendMessage); // REST canonical alias
 
 // 🆕 Model management routes
 router.get("/models", optionalAuth, chatController.getAvailableModels);

@@ -38,9 +38,6 @@ export const fileController = {
         method
       );
 
-      // Cleanup
-      await fileService.cleanup(filePath);
-
       res.status(200).json({
         success: true,
         analysis,
@@ -50,10 +47,11 @@ export const fileController = {
           content.slice(0, 500) + (content.length > 500 ? "..." : ""),
       });
     } catch (err) {
+      next(err);
+    } finally {
       if (filePath) {
         await fileService.cleanup(filePath);
       }
-      next(err);
     }
   },
 
@@ -68,17 +66,16 @@ export const fileController = {
       filePath = req.file.path;
       const metadata = fileService.getMetadata(req.file, 0);
 
-      await fileService.cleanup(filePath);
-
       res.status(200).json({
         success: true,
         metadata,
       });
     } catch (err) {
+      next(err);
+    } finally {
       if (filePath) {
         await fileService.cleanup(filePath);
       }
-      next(err);
     }
   },
 };

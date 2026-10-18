@@ -16,6 +16,9 @@ import fileRoutes from "./src/routes/file.routes.js";
 
 const app = express();
 
+// 🛡️ Reverse Proxy Configuration (Render uses 1 proxy hop)
+app.set("trust proxy", 1);
+
 // Security Middleware
 app.use(
   helmet({
@@ -23,10 +26,42 @@ app.use(
   })
 );
 
+// 🌐 Explicit CORS Whitelist
+const allowedOrigins = new Set([
+  "https://samvaad-gpt.vercel.app",
+  "https://samvaad-gpt-sb6r.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+]);
+
+if (ENV.FRONTEND_URL) {
+  allowedOrigins.add(ENV.FRONTEND_URL.trim().replace(/\/+$/, ""));
+}
+
 app.use(
   cors({
-    origin: true, // Allow request origin dynamically for localhost, Vercel, Render, etc.
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.trim().replace(/\/+$/, "");
+      if (
+        allowedOrigins.has(normalizedOrigin) ||
+        (ENV.NODE_ENV === "development" &&
+          /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin))
+      ) {
+        return callback(null, true);
+      }
+
+      logger.warn(`🚫 Blocked unauthorized CORS request from origin: ${origin}`);
+      return callback(new Error(`Origin ${origin} not allowed by CORS policy`), false);
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma", "X-Requested-With"],
+    maxAge: 86400,
   })
 );
 
@@ -43,7 +78,9 @@ app.use((req, res, next) => {
 const limiter = rateLimit({
   windowMs: ENV.RATE_LIMIT_WINDOW,
   max: ENV.RATE_LIMIT_MAX,
-  message: "Too many requests from this IP, please try again later.",
+  message: { success: false, error: "Too many requests from this IP, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use("/api/", limiter);
 app.use("/auth/", limiter);
@@ -128,4 +165,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+export { app };
+
+if (process.env.NODE_ENV !== "test") {
+  startServer();
+}

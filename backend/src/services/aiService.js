@@ -1,6 +1,7 @@
 import { ENV } from "../config/env.js";
 import { CONSTANTS } from "../config/constants.js";
 import { logger } from "../utils/logger.js";
+import { ApiError } from "../utils/response.js";
 
 const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly capable, helpful, and sophisticated AI assistant created by Satyam Mishra, designed to provide ChatGPT-caliber answers.
 
@@ -25,9 +26,12 @@ const DEFAULT_SYSTEM_PROMPT = `You are SamvaadGPT — a highly capable, helpful,
 
 // ⚡ GROQ API (Fast Mode)
 const getGroqResponse = async (messages, config) => {
-  try {
-    if (!ENV.GROQ_API_KEY) throw new Error("Groq API key not configured");
+  if (!ENV.GROQ_API_KEY) {
+    logger.warn("⚠️ Groq API key not configured");
+    return null;
+  }
 
+  try {
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -43,6 +47,7 @@ const getGroqResponse = async (messages, config) => {
           max_tokens: config.maxTokens,
           top_p: config.topP,
         }),
+        signal: AbortSignal.timeout(25000),
       }
     );
 
@@ -50,42 +55,33 @@ const getGroqResponse = async (messages, config) => {
 
     if (!response.ok) {
       const errMsg = data?.error?.message || `HTTP ${response.status}`;
-      throw new Error(errMsg);
+      logger.error("❌ Groq API Error:", errMsg);
+      return null;
     }
 
-    // ✅ Extract content safely
+    // Extract content safely
     let content = data?.choices?.[0]?.message?.content;
-
-    // ✅ Handle null/undefined/non-string
-    if (!content || typeof content !== "string") {
-      if (content === null || content === undefined) {
-        logger.warn("⚠️ Groq returned null/undefined content");
-      } else {
-        logger.warn(`⚠️ Groq returned non-string content (type: ${typeof content}):`, content);
-        content = String(content);
-      }
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      logger.warn("⚠️ Groq returned empty or non-string content");
+      return null;
     }
 
-    content = (content || "").trim();
-
-    if (content.length === 0) {
-      logger.warn("⚠️ Groq returned empty content");
-      return "⚠️ Groq returned no readable content. Please try again.";
-    }
-
-    logger.success("✅ Groq Response received, length:", content.length);
-    return content;
+    logger.success("✅ Groq Response received, length:", content.trim().length);
+    return content.trim();
   } catch (err) {
-    logger.error("❌ Groq API Error:", err.message);
-    return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
+    logger.error("❌ Groq Request Error:", err.message);
+    return null;
   }
 };
 
 // 🎨 GEMINI API (Creative Mode)
 const getGeminiResponse = async (messages, config) => {
-  try {
-    if (!ENV.GEMINI_API_KEY) throw new Error("Gemini API key not configured");
+  if (!ENV.GEMINI_API_KEY) {
+    logger.warn("⚠️ Gemini API key not configured");
+    return null;
+  }
 
+  try {
     const systemMsg = messages.find((msg) => msg.role === "system");
     const contents = messages
       .filter((msg) => msg.role !== "system")
@@ -115,6 +111,7 @@ const getGeminiResponse = async (messages, config) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(25000),
       }
     );
 
@@ -122,33 +119,22 @@ const getGeminiResponse = async (messages, config) => {
 
     if (!response.ok) {
       const errMsg = data?.error?.message || `HTTP ${response.status}`;
-      throw new Error(errMsg);
+      logger.error("❌ Gemini API Error:", errMsg);
+      return null;
     }
 
-    // ✅ Extract text safely
+    // Extract text safely
     let text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text || typeof text !== "string") {
-      if (text === null || text === undefined) {
-        logger.warn("⚠️ Gemini returned null/undefined content");
-      } else {
-        logger.warn(`⚠️ Gemini returned non-string content (type: ${typeof text}):`, text);
-        text = String(text);
-      }
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      logger.warn("⚠️ Gemini returned empty or non-string content");
+      return null;
     }
 
-    text = (text || "").trim();
-
-    if (text.length === 0) {
-      logger.warn("⚠️ Gemini returned empty content");
-      return "⚠️ Gemini returned no content.";
-    }
-
-    logger.success("✅ Gemini Response received, length:", text.length);
-    return text;
+    logger.success("✅ Gemini Response received, length:", text.trim().length);
+    return text.trim();
   } catch (err) {
-    logger.error("❌ Gemini API Error:", err.message);
-    return "⚠️ I'm currently unable to process your request. Please try again in a moment.";
+    logger.error("❌ Gemini Request Error:", err.message);
+    return null;
   }
 };
 
@@ -159,62 +145,46 @@ export const aiService = {
     modelMode = "fast",
     systemPrompt = null
   ) => {
-    try {
-      const modelConfig =
-        CONSTANTS.AI_MODELS[modelMode.toUpperCase()] ||
-        CONSTANTS.AI_MODELS.FAST;
+    const modelConfig =
+      CONSTANTS.AI_MODELS[modelMode.toUpperCase()] ||
+      CONSTANTS.AI_MODELS.FAST;
 
-      const apiMessages = [
-        { role: "system", content: systemPrompt || DEFAULT_SYSTEM_PROMPT },
-        ...messages.slice(-10),
-      ];
+    const apiMessages = [
+      { role: "system", content: systemPrompt || DEFAULT_SYSTEM_PROMPT },
+      ...messages.slice(-10),
+    ];
 
-      logger.info(`Using ${modelConfig.name} (${modelConfig.provider})`);
+    logger.info(`Using ${modelConfig.name} (${modelConfig.provider})`);
 
-      let response;
-      if (modelConfig.provider === "groq") {
-        response = await getGroqResponse(apiMessages, modelConfig);
-        if (!response || response.startsWith("⚠️")) {
-          logger.warn("Groq failed or returned error, attempting Gemini fallback...");
-          const fallbackResp = await getGeminiResponse(apiMessages, CONSTANTS.AI_MODELS.CREATIVE);
-          if (fallbackResp && !fallbackResp.startsWith("⚠️")) {
-            response = fallbackResp;
-          }
-        }
-      } else if (modelConfig.provider === "gemini") {
-        response = await getGeminiResponse(apiMessages, modelConfig);
-        if (!response || response.startsWith("⚠️")) {
-          logger.warn("Gemini failed or returned error, attempting Groq fallback...");
-          const fallbackResp = await getGroqResponse(apiMessages, CONSTANTS.AI_MODELS.FAST);
-          if (fallbackResp && !fallbackResp.startsWith("⚠️")) {
-            response = fallbackResp;
-          }
-        }
-      } else {
-        throw new Error(`Unknown provider: ${modelConfig.provider}`);
+    let response = null;
+
+    if (modelConfig.provider === "groq") {
+      response = await getGroqResponse(apiMessages, modelConfig);
+      // Attempt Gemini fallback if Groq failed
+      if (!response && ENV.GEMINI_API_KEY) {
+        logger.warn("Groq primary request failed. Attempting Gemini fallback...");
+        response = await getGeminiResponse(apiMessages, CONSTANTS.AI_MODELS.CREATIVE);
       }
-
-      // ✅ FINAL CHECK: Ensure response is always a string
-      if (typeof response !== "string") {
-        logger.error("❌ Final response is not a string:", typeof response);
-        return "⚠️ Invalid response format received.";
+    } else if (modelConfig.provider === "gemini") {
+      response = await getGeminiResponse(apiMessages, modelConfig);
+      // Attempt Groq fallback if Gemini failed
+      if (!response && ENV.GROQ_API_KEY) {
+        logger.warn("Gemini primary request failed. Attempting Groq fallback...");
+        response = await getGroqResponse(apiMessages, CONSTANTS.AI_MODELS.FAST);
       }
-
-      response = response.trim();
-
-      if (response.length === 0) {
-        logger.error("❌ Final response is empty");
-        return "⚠️ AI service returned an empty response.";
-      }
-
-      return response;
-    } catch (err) {
-      logger.error("❌ AI Service Error:", err.message);
-      return `⚠️ I'm having trouble with the ${
-        CONSTANTS.AI_MODELS[modelMode.toUpperCase()]?.name ||
-        "selected model"
-      }. Please try again or switch to another mode.`;
+    } else {
+      throw new ApiError(400, `Unknown AI provider: ${modelConfig.provider}`);
     }
+
+    if (!response || typeof response !== "string" || response.trim().length === 0) {
+      logger.error(`❌ All AI providers failed for model mode: ${modelMode}`);
+      throw new ApiError(
+        503,
+        `AI service is temporarily unavailable for ${modelConfig.name}. Please try again shortly or select a different model.`
+      );
+    }
+
+    return response.trim();
   },
 
   getAvailableModels: () => {

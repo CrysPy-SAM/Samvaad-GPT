@@ -5,7 +5,7 @@ export const createRateLimiter = (windowMs, max, message) => {
   return rateLimit({
     windowMs,
     max,
-    message,
+    message: { success: false, error: message },
     standardHeaders: true,
     legacyHeaders: false,
   });

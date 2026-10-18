@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Thread from "../models/Thread.js";
 import User from "../models/User.js";
 import { v4 as uuidv4 } from "uuid";
@@ -6,7 +7,7 @@ import { aiService } from "../services/aiService.js";
 import { logger } from "../utils/logger.js";
 
 export const chatController = {
-  // ✅ Get all threads for user
+  // ✅ Get all threads for user (optimized: excludes full message history from wire)
   getThreads: async (req, res, next) => {
     try {
       const userId = req.user?.id || req.user?._id;
@@ -16,26 +17,47 @@ export const chatController = {
       const limit = parseInt(req.query.limit) || 20;
       const skip = (page - 1) * limit;
 
+      const userObjectId = mongoose.Types.ObjectId.isValid(userId)
+        ? new mongoose.Types.ObjectId(userId)
+        : userId;
+
       const [threads, total] = await Promise.all([
-        Thread.find({ userId })
-          .select("threadId title updatedAt createdAt messages settings")
-          .sort({ updatedAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        Thread.countDocuments({ userId }),
+        Thread.aggregate([
+          { $match: { userId: userObjectId, archived: { $ne: true } } },
+          { $sort: { updatedAt: -1 } },
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 0,
+              threadId: 1,
+              title: 1,
+              updatedAt: 1,
+              createdAt: 1,
+              settings: 1,
+              messageCount: { $size: { $ifNull: ["$messages", []] } },
+              lastMessage: {
+                $let: {
+                  vars: {
+                    lastItem: { $arrayElemAt: ["$messages", -1] },
+                  },
+                  in: {
+                    $substrCP: [
+                      { $ifNull: ["$$lastItem.content", ""] },
+                      0,
+                      100,
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ]),
+        Thread.countDocuments({ userId: userObjectId, archived: { $ne: true } }),
       ]);
 
-      const enrichedThreads = threads.map((thread) => ({
-        ...thread,
-        messageCount: thread.messages?.length || 0,
-        lastMessage:
-          thread.messages?.[thread.messages.length - 1]?.content.slice(0, 100) ||
-          "",
-      }));
-
       res.status(200).json({
-        threads: enrichedThreads,
+        threads,
         pagination: {
           page,
           limit,
@@ -171,7 +193,7 @@ export const chatController = {
     try {
       const { threadId, message, isGuest, modelMode } = req.body;
       const userId = req.user?.id || req.user?._id;
-      const isAuthenticated = Boolean(userId && !isGuest);
+      const isAuthenticated = Boolean(userId);
 
       if (!message || message.trim().length === 0) {
         throw new ApiError(400, "Message content is required");
