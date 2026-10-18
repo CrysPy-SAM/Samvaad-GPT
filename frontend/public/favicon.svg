@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient (Emerald to Cyan) -->
+    <linearGradient id="samvaadBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="45%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <!-- Sparkle Gradient (Teal to Cyan) -->
+    <linearGradient id="sparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="50%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#0891b2" />
+    </linearGradient>
+
+    <!-- Soft Drop Shadow for Chat Bubble -->
+    <filter id="bubbleGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#022c22" flood-opacity="0.3" />
+    </filter>
+
+    <!-- Inner Bubble Gradient for Subtle Depth -->
+    <linearGradient id="bubbleFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f0fdf4" />
+    </linearGradient>
+  </defs>
+
+  <!-- Modern Rounded Squircle Base -->
+  <rect width="512" height="512" rx="128" fill="url(#samvaadBg)" />
+
+  <!-- Subtle Rim Light / Inner Border -->
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.25" />
+
+  <!-- Samvaad Dialogue Bubble -->
+  <path d="M128 140 C128 116, 148 96, 172 96 H340 C364 96, 384 116, 384 140 V260 C384 284, 364 304, 340 304 H256 L196 356 C186 364, 172 357, 172 344 V304 H172 C148 304, 128 284, 128 260 Z"
+        fill="url(#bubbleFill)"
+        filter="url(#bubbleGlow)" />
+
+  <!-- Primary AI Sparkle / Neural Intelligence Star (Centered at x=256, y=200) -->
+  <path d="M256 136 C256 171.3, 284.7 200, 320 200 C284.7 200, 256 228.7, 256 264 C256 228.7, 227.3 200, 192 200 C227.3 200, 256 171.3, 256 136 Z"
+        fill="url(#sparkleGrad)" />
+
+  <!-- Secondary Creative Accent Spark (Top-Right) -->
+  <path d="M338 132 C338 144.15, 347.85 154, 360 154 C347.85 154, 338 163.85, 338 176 C338 163.85, 328.15 154, 316 154 C328.15 154, 338 144.15, 338 132 Z"
+        fill="#10b981" />
+
+  <!-- Tertiary Micro Spark (Bottom-Left) -->
+  <circle cx="168" cy="244" r="8" fill="#14b8a6" />
+</svg>
+

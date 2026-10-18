@@ -61,28 +61,37 @@ describe("Security & Configuration Tests", () => {
     assert.equal(res.status, 200);
   });
 
-  it("Production JWT Guard: should throw fatal error if JWT_SECRET missing in production", async () => {
-    // We dynamically test the validation rule
-    const testProductionGuard = (secret, nodeEnv) => {
-      if (nodeEnv === "production") {
-        if (!secret || secret.trim() === "" || secret === "samvaad_secret_key_12345") {
-          throw new Error("FATAL: JWT_SECRET environment variable is required and must not use the default placeholder in production mode.");
+  it("Production JWT Guard: generates secure random key if missing/placeholder in production", async () => {
+    const crypto = await import("crypto");
+
+    const resolveSecret = (rawSecret, nodeEnv) => {
+      let resolved = rawSecret ? rawSecret.trim() : "";
+      if (!resolved || resolved === "samvaad_secret_key_12345") {
+        if (nodeEnv === "production") {
+          return crypto.randomBytes(32).toString("hex");
+        } else {
+          return "dev_insecure_jwt_secret_only_for_local_env";
         }
       }
-      return true;
+      return resolved;
     };
 
-    assert.throws(
-      () => testProductionGuard(undefined, "production"),
-      /FATAL: JWT_SECRET environment variable is required/
-    );
+    // When missing in production: must return a 64-char hex key (32 bytes), NOT the insecure placeholder
+    const prodGenerated = resolveSecret(undefined, "production");
+    assert.equal(prodGenerated.length, 64);
+    assert.notEqual(prodGenerated, "samvaad_secret_key_12345");
 
-    assert.throws(
-      () => testProductionGuard("samvaad_secret_key_12345", "production"),
-      /must not use the default placeholder/
-    );
+    // When placeholder provided in production: must replace with secure random key
+    const prodPlaceholder = resolveSecret("samvaad_secret_key_12345", "production");
+    assert.equal(prodPlaceholder.length, 64);
+    assert.notEqual(prodPlaceholder, "samvaad_secret_key_12345");
 
-    assert.equal(testProductionGuard("custom_valid_prod_key_999", "production"), true);
+    // When custom key provided in production: must preserve it
+    const customKey = "my_custom_production_key_1234567890";
+    assert.equal(resolveSecret(customKey, "production"), customKey);
+
+    // In development mode: returns dev fallback
+    assert.equal(resolveSecret(undefined, "development"), "dev_insecure_jwt_secret_only_for_local_env");
   });
 });
 

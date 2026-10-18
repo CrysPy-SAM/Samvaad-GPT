@@ -1,1 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="31.88" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 257"><defs><linearGradient id="IconifyId1813088fe1fbc01fb466" x1="-.828%" x2="57.636%" y1="7.652%" y2="78.411%"><stop offset="0%" stop-color="#41D1FF"></stop><stop offset="100%" stop-color="#BD34FE"></stop></linearGradient><linearGradient id="IconifyId1813088fe1fbc01fb467" x1="43.376%" x2="50.316%" y1="2.242%" y2="89.03%"><stop offset="0%" stop-color="#FFEA83"></stop><stop offset="8.333%" stop-color="#FFDD35"></stop><stop offset="100%" stop-color="#FFA800"></stop></linearGradient></defs><path fill="url(#IconifyId1813088fe1fbc01fb466)" d="M255.153 37.938L134.897 252.976c-2.483 4.44-8.862 4.466-11.382.048L.875 37.958c-2.746-4.814 1.371-10.646 6.827-9.67l120.385 21.517a6.537 6.537 0 0 0 2.322-.004l117.867-21.483c5.438-.991 9.574 4.796 6.877 9.62Z"></path><path fill="url(#IconifyId1813088fe1fbc01fb467)" d="M185.432.063L96.44 17.501a3.268 3.268 0 0 0-2.634 3.014l-5.474 92.456a3.268 3.268 0 0 0 3.997 3.378l24.777-5.718c2.318-.535 4.413 1.507 3.936 3.838l-7.361 36.047c-.495 2.426 1.782 4.5 4.151 3.78l15.304-4.649c2.372-.72 4.652 1.36 4.15 3.788l-11.698 56.621c-.732 3.542 3.979 5.473 5.943 2.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505 4.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z"></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient (Emerald to Cyan) -->
+    <linearGradient id="samvaadBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="45%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <!-- Sparkle Gradient (Teal to Cyan) -->
+    <linearGradient id="sparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="50%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#0891b2" />
+    </linearGradient>
+
+    <!-- Soft Drop Shadow for Chat Bubble -->
+    <filter id="bubbleGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#022c22" flood-opacity="0.3" />
+    </filter>
+
+    <!-- Inner Bubble Gradient for Subtle Depth -->
+    <linearGradient id="bubbleFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f0fdf4" />
+    </linearGradient>
+  </defs>
+
+  <!-- Modern Rounded Squircle Base -->
+  <rect width="512" height="512" rx="128" fill="url(#samvaadBg)" />
+
+  <!-- Subtle Rim Light / Inner Border -->
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.25" />
+
+  <!-- Samvaad Dialogue Bubble -->
+  <path d="M128 140 C128 116, 148 96, 172 96 H340 C364 96, 384 116, 384 140 V260 C384 284, 364 304, 340 304 H256 L196 356 C186 364, 172 357, 172 344 V304 H172 C148 304, 128 284, 128 260 Z"
+        fill="url(#bubbleFill)"
+        filter="url(#bubbleGlow)" />
+
+  <!-- Primary AI Sparkle / Neural Intelligence Star (Centered at x=256, y=200) -->
+  <path d="M256 136 C256 171.3, 284.7 200, 320 200 C284.7 200, 256 228.7, 256 264 C256 228.7, 227.3 200, 192 200 C227.3 200, 256 171.3, 256 136 Z"
+        fill="url(#sparkleGrad)" />
+
+  <!-- Secondary Creative Accent Spark (Top-Right) -->
+  <path d="M338 132 C338 144.15, 347.85 154, 360 154 C347.85 154, 338 163.85, 338 176 C338 163.85, 328.15 154, 316 154 C328.15 154, 338 144.15, 338 132 Z"
+        fill="#10b981" />
+
+  <!-- Tertiary Micro Spark (Bottom-Left) -->
+  <circle cx="168" cy="244" r="8" fill="#14b8a6" />
+</svg>

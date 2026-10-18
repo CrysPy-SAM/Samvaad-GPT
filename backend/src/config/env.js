@@ -1,24 +1,26 @@
 import dotenv from "dotenv";
+import crypto from "crypto";
 dotenv.config();
 
 const nodeEnv = process.env.NODE_ENV || "development";
 const rawJwtSecret = process.env.JWT_SECRET;
 
-if (nodeEnv === "production") {
-  if (!rawJwtSecret || rawJwtSecret.trim() === "" || rawJwtSecret === "samvaad_secret_key_12345") {
-    throw new Error(
-      "FATAL: JWT_SECRET environment variable is required and must not use the default placeholder in production mode."
+let resolvedJwtSecret = rawJwtSecret ? rawJwtSecret.trim() : "";
+
+if (!resolvedJwtSecret || resolvedJwtSecret === "samvaad_secret_key_12345") {
+  if (nodeEnv === "production") {
+    // Auto-generate a secure 256-bit key so Render never crashes, while protecting against token forgery
+    resolvedJwtSecret = crypto.randomBytes(32).toString("hex");
+    console.warn(
+      "⚠️ [SECURITY WARNING] JWT_SECRET is not set (or is using placeholder) in Render environment variables."
     );
+    console.warn(
+      "👉 An ephemeral 256-bit secure key was generated so your server can boot safely without downtime. Please add JWT_SECRET to your Render Environment tab for persistent sessions across restarts."
+    );
+  } else {
+    resolvedJwtSecret = "dev_insecure_jwt_secret_only_for_local_env";
+    console.warn("⚠️ [WARN] JWT_SECRET is not set. Using dev fallback secret for local development.");
   }
-}
-
-const resolvedJwtSecret =
-  rawJwtSecret && rawJwtSecret.trim() !== ""
-    ? rawJwtSecret.trim()
-    : "dev_insecure_jwt_secret_only_for_local_env";
-
-if (!rawJwtSecret && nodeEnv !== "production") {
-  console.warn("⚠️ [WARN] JWT_SECRET is not set. Using dev fallback secret for local development.");
 }
 
 export const ENV = {
